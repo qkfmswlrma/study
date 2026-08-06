@@ -11,8 +11,6 @@
 
 const fs = require("fs");
 const { JSDOM } = require("jsdom");
-const React = require("react");
-const ReactDOM = require("react-dom/client");
 
 const file = process.argv[2] || "index.html";
 const path = process.argv[3] || "/";
@@ -20,6 +18,27 @@ const asMember = process.argv.includes("--login");
 const empty = process.argv.includes("--empty");
 const url = "https://example.com" + path;
 const html = fs.readFileSync(file, "utf8");
+
+/* ---------- 브라우저 환경 ----------
+   react-dom 을 부르기 전에 window 와 document 를 먼저 깔아야 한다.
+   react-dom 은 로드하는 순간 "여기 DOM 이 있나" 를 한 번 정해두는데,
+   그때 window 가 없으면 IE 시절 경로로 굳어서 글자 입력에 onChange 가 오지 않는다.
+   순서가 바뀌면 조용히 그렇게 되니 아래 require 를 위로 올리지 말 것. */
+const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url, pretendToBeVisual: true });
+const { window } = dom;
+function setGlobal(name, value) {
+  try { global[name] = value; }
+  catch (e) { Object.defineProperty(global, name, { value, configurable: true, writable: true }); }
+}
+setGlobal("window", window);
+setGlobal("document", window.document);
+setGlobal("navigator", window.navigator);
+setGlobal("HTMLElement", window.HTMLElement);
+setGlobal("Node", window.Node);
+setGlobal("getComputedStyle", window.getComputedStyle);
+
+const React = require("react");
+const ReactDOM = require("react-dom/client");
 
 /* ---------- 가짜 데이터 ---------- */
 const UID = "test-user";
@@ -42,19 +61,6 @@ const CATEGORIES = [
   { id: "k3", user_id: UID, name: "더프리미엄", subject: null, created_at: "2026-03-03T00:00:00Z" },
 ];
 
-/* ---------- 브라우저 환경 ---------- */
-const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url, pretendToBeVisual: true });
-const { window } = dom;
-function setGlobal(name, value) {
-  try { global[name] = value; }
-  catch (e) { Object.defineProperty(global, name, { value, configurable: true, writable: true }); }
-}
-setGlobal("window", window);
-setGlobal("document", window.document);
-setGlobal("navigator", window.navigator);
-setGlobal("HTMLElement", window.HTMLElement);
-setGlobal("Node", window.Node);
-setGlobal("getComputedStyle", window.getComputedStyle);
 setGlobal("React", React);
 setGlobal("ReactDOM", ReactDOM);
 setGlobal("requestAnimationFrame", (f) => setTimeout(f, 0));
@@ -157,12 +163,22 @@ const clickByText = (needle) => {
   b.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
   return true;
 };
-/* 글자 입력(input type=text)은 여기서 흉내 낼 수 없다.
-   jsdom 에서 React 18 제어 입력칸은 값을 바꿔치기하고 input/change 를 쏴도
-   onChange 가 오지 않는다. _valueTracker 를 비우는 흔한 수법도 안 먹는다.
-   최소 예제로도 재현되니 앱 문제가 아니다.
-   드롭다운(select)은 React 가 다른 경로로 처리해서 change 만 쏘면 먹는다. */
+/* 입력칸에 글자를 넣는다.
+   React 는 칸마다 마지막으로 넣은 값을 따로 들고 있어서(_valueTracker)
+   값만 바꿔치기하면 바뀐 걸 모른다. 그 기억을 먼저 비워야 onChange 가 온다.
+   (파일 위쪽 require 순서가 어긋나면 이게 통째로 안 먹으니 그쪽도 같이 볼 것) */
 const inputValues = () => Array.from(window.document.querySelectorAll("input")).map((i) => i.value);
+const typeInto = (el, value) => {
+  if (!el) return false;
+  try { if (el._valueTracker) el._valueTracker.setValue(""); } catch (e) {}
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+  setter.call(el, String(value));
+  el.dispatchEvent(new window.Event("input", { bubbles: true }));
+  return true;
+};
+const inputByPlaceholder = (frag) =>
+  Array.from((topSheet() || window.document).querySelectorAll("input"))
+    .find((i) => (i.placeholder || "").includes(frag));
 const selects = () => {
   const sheet = window.document.querySelector(".sheet");
   return Array.from((sheet || window.document).querySelectorAll("select"));
@@ -227,24 +243,35 @@ function afterRecent() {
       log("  국어목록 :", ["6월 모의평가", "수능", "이감", "더프리미엄"].filter((n) => chips.indexOf(n) !== -1).join(" ") || "없음 X");
       log("  다른과목 :", chips.indexOf("킬링캠프") === -1 ? "킬링캠프 안 보임 OK" : "킬링캠프 보임 X");
 
-      // 평가원은 한 번에 끝나고 년도는 응시일에서 온다
+      // 평가원·교육청은 몇 년도 시험인지 묻는다 (푼 날짜가 아니다)
       clickByText("6월 모의평가");
       step(() => {
-        const y = new Date().getFullYear();
-        log("  평가원   :", shownName() === y + " 6월 모의평가" ? shownName() + " OK" : (shownName() || "") + " X");
-
-        // 내가 만든 것은 회차를 한 번 더 고른다
-        openPicker();
+        const askYear = (window.document.body.textContent || "").includes("몇 년도 시험인가요");
+        log("  연도물음 :", askYear ? "물어봄 OK" : "안 물어봄 X");
+        if (!askYear) return report();
+        clickByText("2024");
         step(() => {
-          clickByText("이감");
+          log("  연도붙음 :", shownName() === "2024 6월 모의평가" ? "2024 6월 모의평가 OK" : (shownName() || "") + " X");
+
+          // 사설은 회차를 적는다. 칸에 다음 회차가 미리 들어가 있어야 한다
+          openPicker();
           step(() => {
-            const askRound = (window.document.body.textContent || "").includes("몇 회차인가요");
-            log("  회차물음 :", askRound ? "물어봄 OK" : "안 물어봄 X");
-            if (!askRound) return report();
-            clickByText("3회");
+            clickByText("이감");
             step(() => {
-              log("  회차붙음 :", shownName() === "이감 3회" ? "이감 3회 OK" : (shownName() || "") + " X");
-              report();
+              const askRound = (window.document.body.textContent || "").includes("몇 회차인가요");
+              log("  회차물음 :", askRound ? "물어봄 OK" : "안 물어봄 X");
+              if (!askRound) return report();
+              const box = inputByPlaceholder("회차");
+              log("  회차칸   :", box ? (box.value === "" ? "비어있음 (지난 기록 없어 정상)" : "미리 " + box.value) : "없음 X");
+              // 회차가 50 을 넘어도 적을 수 있어야 한다
+              typeInto(box, 47);
+              step(() => {
+                clickByText("확인");
+                step(() => {
+                  log("  회차적음 :", shownName() === "이감 47회" ? "이감 47회 OK" : (shownName() || "") + " X");
+                  report();
+                });
+              });
             });
           });
         });

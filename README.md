@@ -43,10 +43,11 @@ node _verify.js index.html /records --empty
 node _verify.js index.html /records --login --form
 ```
 
-`--form` 은 기록 입력창을 열어 시험 고르는 칸까지 눌러본다.
-글자 입력칸은 여기서 흉내 낼 수 없다. jsdom 에서 React 18 제어 입력칸은
-값을 바꿔치기하고 input 을 쏴도 onChange 가 오지 않는다. 드롭다운은 된다.
-그래서 확인이 필요한 조작은 되도록 드롭다운이나 버튼으로 만든다.
+`--form` 은 기록 입력창을 열어 시험 고르는 흐름을 끝까지 눌러본다.
+
+`_verify.js` 위쪽에서 **react-dom 을 require 하기 전에 window 와 document 를 깐다.**
+순서가 바뀌면 react-dom 이 "여기 DOM 이 없다" 고 판단한 채로 굳어서, IE 시절 경로를 타고
+글자 입력에 onChange 가 오지 않는다. 아무 오류 없이 조용히 그렇게 되니 손대지 말 것.
 
 한글이 유실되지 않았는지도 본다. 0개가 아니면 배포하지 않는다.
 

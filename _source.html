@@ -143,7 +143,7 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-const APP_VERSION = "1.2.0";
+const APP_VERSION = "1.3.0";
 
 /* ====== Supabase 설정 ======
    Supabase 프로젝트를 만든 뒤 아래 두 줄을 채우세요.
@@ -170,6 +170,23 @@ const SUBJECTS = [
 ];
 const subjectOf = (k) => SUBJECTS.find((s) => s.key === k) || SUBJECTS[0];
 
+/* 탐구는 사람마다 고른 과목이 달라서 계정 설정에서 지정한다.
+   지정하면 화면 곳곳의 "탐구 1" 자리에 그 과목 이름이 대신 나온다.
+   화면 조각마다 설정을 넘겨주면 손댈 곳이 너무 많아져서 여기 담아두고
+   App 이 설정을 읽을 때 함께 채운다. 값이 바뀌면 App 이 다시 그린다. */
+const TAMGU_NAMES = { tamgu1: "", tamgu2: "" };
+const applyTamguNames = (v) => {
+  TAMGU_NAMES.tamgu1 = ((v && v.tamgu1) || "").trim();
+  TAMGU_NAMES.tamgu2 = ((v && v.tamgu2) || "").trim();
+};
+const subjectName = (k) => TAMGU_NAMES[k] || subjectOf(k).name;
+
+// 탐구에서 고를 수 있는 과목
+const TAMGU_CHOICES = [
+  { group: "사회탐구", items: ["생활과 윤리", "윤리와 사상", "한국지리", "세계지리", "동아시아사", "세계사", "경제", "정치와 법", "사회·문화"] },
+  { group: "과학탐구", items: ["물리학Ⅰ", "화학Ⅰ", "생명과학Ⅰ", "지구과학Ⅰ", "물리학Ⅱ", "화학Ⅱ", "생명과학Ⅱ", "지구과학Ⅱ"] },
+];
+
 /* ====== 시험 카테고리 ======
    평가원과 교육청 시험은 누가 봐도 같으니 처음부터 깔아둔다.
    사설처럼 사람마다 다른 건 각자 추가해서 쓴다. 추가한 건 계정에 남는다. */
@@ -177,37 +194,40 @@ const BASE_CATEGORIES = [
   "3월 학력평가", "5월 학력평가", "6월 모의평가",
   "7월 학력평가", "9월 모의평가", "10월 학력평가", "수능",
 ];
-const ROUNDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 const isBaseCat = (n) => BASE_CATEGORIES.indexOf(n) !== -1;
 
 /* 저장은 합쳐진 이름 한 줄로 한다.
-   평가원·교육청은 해마다 있으니 어느 해인지를 앞에 붙인다. 년도는 따로 묻지 않고
-   바로 아래에서 받는 응시일에서 가져온다. 같은 걸 두 번 고를 이유가 없다.
+   평가원·교육청은 몇 년도 시험인지를 앞에 붙인다.
+   이건 응시일과 다르다. 2026년에 2024년 기출을 풀 수 있으니 따로 받아야 한다.
    내가 만든 건 몇 회차인지를 뒤에 붙인다.
-   "2026 6월 모의평가"  "이감 3회"
+   "2024 6월 모의평가"  "이감 3회"
    (설명을 JSX 안에 주석으로 두면 컴파일 때 통째로 사라져서 여기 적는다) */
-function composeExamName(p, examDate) {
+function composeExamName(p) {
   if (!p || !p.cat) return p && p.orphan ? p.orphan : "";
-  if (isBaseCat(p.cat)) {
-    const y = String(examDate || "").slice(0, 4);
-    return (/^\d{4}$/.test(y) ? y + " " : "") + p.cat;
-  }
+  if (isBaseCat(p.cat)) return (p.year ? p.year + " " : "") + p.cat;
   return p.cat + (p.round ? " " + p.round + "회" : "");
 }
 /* 합쳐진 이름을 도로 쪼갠다. 못 알아보면 orphan 으로 두고 그대로 보여준다 */
 function parseExamName(name, myNames) {
   const s = String(name || "").trim();
-  const none = { cat: "", round: "", orphan: "" };
+  const none = { cat: "", year: "", round: "", orphan: "" };
   if (!s) return none;
-  const withYear = s.match(/^\d{4}\s+(.+)$/);
-  if (withYear && isBaseCat(withYear[1])) return { cat: withYear[1], round: "", orphan: "" };
-  if (isBaseCat(s)) return { cat: s, round: "", orphan: "" };
+  const withYear = s.match(/^(\d{4})\s+(.+)$/);
+  if (withYear && isBaseCat(withYear[2])) return { cat: withYear[2], year: withYear[1], round: "", orphan: "" };
+  if (isBaseCat(s)) return { cat: s, year: "", round: "", orphan: "" };
   const withRound = s.match(/^(.+?)\s+(\d+)회$/);
   if (withRound && (myNames || []).indexOf(withRound[1]) !== -1)
-    return { cat: withRound[1], round: withRound[2], orphan: "" };
-  if ((myNames || []).indexOf(s) !== -1) return { cat: s, round: "", orphan: "" };
-  return { cat: "", round: "", orphan: s };
+    return { cat: withRound[1], year: "", round: withRound[2], orphan: "" };
+  if ((myNames || []).indexOf(s) !== -1) return { cat: s, year: "", round: "", orphan: "" };
+  return { cat: "", year: "", round: "", orphan: s };
 }
+// 기출은 옛날 것도 푼다. 올해부터 거슬러 내려간다
+const EXAM_YEARS = (() => {
+  const now = new Date().getFullYear();
+  const out = [];
+  for (let y = now; y >= 2005; y--) out.push(String(y));
+  return out;
+})();
 /* 이 카테고리로 몇 회차까지 기록했는지 보고 다음 회차를 미리 골라준다 */
 function suggestRound(records, cat) {
   let max = 0;
@@ -303,6 +323,7 @@ function pushUrl(path) {
    화면은 어느 쪽인지 몰라도 되도록 같은 모양으로 감쌉니다. */
 const LS_REC = "sn-records";
 const LS_CAT = "sn-categories";
+const LS_SET = "sn-settings";
 const readLS = (key) => {
   try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; }
 };
@@ -336,6 +357,9 @@ const toRow = (v) => ({
    "잠시 뒤에 다시" 라고 하면 안 된다. schema.sql 을 실행해야 한다 */
 const isMissingTable = (e) =>
   !!e && (e.code === "PGRST205" || /Could not find the table|schema cache/i.test(e.message || ""));
+// 열이 아직 없을 때 (schema.sql 을 다시 실행해야 한다)
+const isMissingColumn = (e) =>
+  !!e && (e.code === "PGRST204" || e.code === "42703" || /Could not find the '.*' column/i.test(e.message || ""));
 const mapCategory = (r) => ({
   id: r.id, name: r.name || "",
   subject: r.subject || null, // 비어 있으면 전 과목
@@ -405,6 +429,42 @@ const store = {
     const { error } = await sb.from("exam_categories").delete().eq("id", id);
     if (error) throw error;
   },
+  async renameCategory(id, name) {
+    if (!HAS_SB) {
+      const rows = readLS(LS_CAT).map((r) => (r.id === id ? { ...r, name } : r));
+      writeLS(LS_CAT, rows);
+      return mapCategory(rows.find((r) => r.id === id));
+    }
+    const { data, error } = await sb.from("exam_categories").update({ name }).eq("id", id).select().single();
+    if (error) throw error;
+    return mapCategory(data);
+  },
+  // 카테고리 이름을 바꾸면 그 이름으로 남긴 기록도 따라가야 한다
+  async setRecordName(id, examName) {
+    if (!HAS_SB) {
+      const rows = readLocal().map((r) => (r.id === id ? { ...r, exam_name: examName } : r));
+      writeLocal(rows);
+      return;
+    }
+    const { error } = await sb.from("exam_records").update({ exam_name: examName }).eq("id", id);
+    if (error) throw error;
+  },
+
+  /* ---- 개인 설정 (탐구로 무슨 과목을 보는지) ---- */
+  async getSettings(userId) {
+    const empty = { tamgu1: "", tamgu2: "" };
+    if (!HAS_SB) return { ...empty, ...(readLS(LS_SET)[0] || {}) };
+    if (!userId) return empty;
+    const { data, error } = await sb.from("profiles").select("tamgu1,tamgu2").eq("id", userId).maybeSingle();
+    if (error) throw error;
+    return { tamgu1: (data && data.tamgu1) || "", tamgu2: (data && data.tamgu2) || "" };
+  },
+  async saveSettings(userId, v) {
+    if (!HAS_SB) { writeLS(LS_SET, [v]); return v; }
+    const { error } = await sb.from("profiles").update({ tamgu1: v.tamgu1 || null, tamgu2: v.tamgu2 || null }).eq("id", userId);
+    if (error) throw error;
+    return v;
+  },
 };
 
 /* ====== 공통 화면 조각 ====== */
@@ -429,7 +489,7 @@ function Ring({ ratio, color, size = 232, stroke = 14, children }) {
 
 function SubjectBadge({ subject }) {
   const s = subjectOf(subject);
-  return <span className="badge" style={{ background: s.color }}>{s.name}</span>;
+  return <span className="badge" style={{ background: s.color }}>{subjectName(subject)}</span>;
 }
 
 function Modal({ title, onClose, children }) {
@@ -534,7 +594,7 @@ function Home({ auth, records, go, openAuth }) {
         <div className="chips">
           {SUBJECTS.slice(0, 4).map((s) => (
             <button key={s.key} className="chip" onClick={() => go("timer", { subject: s.key })}>
-              {s.name} {s.minutes}분
+              {subjectName(s.key)} {s.minutes}분
             </button>
           ))}
           <button className="chip" onClick={() => go("timer")}>전체 보기</button>
@@ -572,7 +632,7 @@ function Home({ auth, records, go, openAuth }) {
                   const last = list[0];
                   return (
                     <tr key={s.key}>
-                      <td style={{ fontWeight: 700 }}>{s.name}</td>
+                      <td style={{ fontWeight: 700 }}>{subjectName(s.key)}</td>
                       <td style={{ color: "var(--tx2)" }}>{list.length}회</td>
                       <td style={{ color: "var(--tx2)" }}>{last.rawScore === null ? "—" : last.rawScore + "점"}</td>
                       <td style={{ fontWeight: 800, color: gradeColor(last.grade) }}>{last.grade ? last.grade + "등급" : "—"}</td>
@@ -729,7 +789,7 @@ function Timer({ initialSubject, onRecord }) {
           {SUBJECTS.map((x) => (
             <button key={x.key} className={"chip" + (x.key === subject && !custom ? " on" : "")}
               disabled={running} onClick={() => pickSubject(x.key)}>
-              {x.name}
+              {subjectName(x.key)}
             </button>
           ))}
         </div>
@@ -832,7 +892,9 @@ const emptyForm = (over) => ({
    평가원·교육청은 년도를 응시일에서 가져오니 바로 끝난다. */
 function ExamPicker({ subject, categories, records, onClose, onDone, onAddCategory }) {
   const [q, setQ] = useState("");
-  const [roundFor, setRoundFor] = useState(""); // 회차를 고르는 중인 카테고리
+  const [roundFor, setRoundFor] = useState(""); // 회차를 적는 중인 카테고리
+  const [roundText, setRoundText] = useState("");
+  const [yearFor, setYearFor] = useState("");   // 연도를 고르는 중인 카테고리
   const [adding, setAdding] = useState(false);
   const [newCat, setNewCat] = useState("");
   const [newCatAll, setNewCatAll] = useState(false);
@@ -845,7 +907,9 @@ function ExamPicker({ subject, categories, records, onClose, onDone, onAddCatego
   const mineHits = mine.filter(hit);
 
   const choose = (cat) => {
-    if (isBaseCat(cat)) return onDone({ cat, round: "", orphan: "" });
+    if (isBaseCat(cat)) return setYearFor(cat);
+    // 지난 기록을 보고 다음 회차를 미리 넣어둔다. 그대로 확인만 누르면 되게
+    setRoundText(suggestRound(records, cat));
     setRoundFor(cat);
   };
   const submitCat = async () => {
@@ -856,27 +920,52 @@ function ExamPicker({ subject, categories, records, onClose, onDone, onAddCatego
     const r = await onAddCategory(name, newCatAll ? null : subject);
     if (r && r.error) return setCatErr(r.error);
     setNewCat(""); setAdding(false); setNewCatAll(false);
-    setRoundFor(name);
+    setRoundText(""); setRoundFor(name);
   };
 
-  if (roundFor) {
-    const suggested = suggestRound(records, roundFor);
+  if (yearFor) {
+    const thisYear = String(new Date().getFullYear());
     return (
-      <Modal title={roundFor + " · 몇 회차인가요"} onClose={() => setRoundFor("")}>
+      <Modal title={yearFor + " · 몇 년도 시험인가요"} onClose={() => setYearFor("")}>
         <div className="chips">
-          <button className="chip" onClick={() => onDone({ cat: roundFor, round: "", orphan: "" })}>회차 없이</button>
-          {ROUNDS.map((n) => (
-            <button key={n} className={"chip" + (String(n) === suggested ? " on" : "")}
-              onClick={() => onDone({ cat: roundFor, round: String(n), orphan: "" })}>
-              {n}회
+          {EXAM_YEARS.map((y) => (
+            <button key={y} className={"chip" + (y === thisYear ? " on" : "")}
+              onClick={() => onDone({ cat: yearFor, year: y, round: "", orphan: "" })}>
+              {y}
             </button>
           ))}
         </div>
-        {suggested && (
-          <p className="sub" style={{ marginTop: 12, marginBottom: 0, fontSize: 12.5 }}>
-            {Number(suggested) - 1}회까지 기록하셨어요. {suggested}회를 미리 골라뒀어요.
-          </p>
-        )}
+        <p className="sub" style={{ marginTop: 12, marginBottom: 0, fontSize: 12.5 }}>
+          푼 날짜가 아니라 그 시험이 치러진 해예요. 옛날 기출을 풀었으면 그 해를 고르세요.
+        </p>
+      </Modal>
+    );
+  }
+
+  if (roundFor) {
+    const suggested = suggestRound(records, roundFor);
+    const done = () => {
+      const n = String(roundText).trim().replace(/[^0-9]/g, "");
+      onDone({ cat: roundFor, year: "", round: n, orphan: "" });
+    };
+    return (
+      <Modal title={roundFor + " · 몇 회차인가요"} onClose={() => setRoundFor("")}>
+        <div className="row">
+          <input className="in" type="number" inputMode="numeric" autoFocus value={roundText}
+            onChange={(e) => setRoundText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") done(); }}
+            placeholder="회차" />
+          <button className="btn pri" style={{ flex: "none" }} onClick={done}>확인</button>
+        </div>
+        <button className="btn wide" style={{ marginTop: 9 }}
+          onClick={() => onDone({ cat: roundFor, year: "", round: "", orphan: "" })}>
+          회차 없이
+        </button>
+        <p className="sub" style={{ marginTop: 12, marginBottom: 0, fontSize: 12.5 }}>
+          {suggested
+            ? Number(suggested) - 1 + "회까지 기록하셨어요. " + suggested + "회를 미리 넣어뒀으니 그대로 확인을 누르면 돼요."
+            : "회차가 몇 번이든 적을 수 있어요."}
+        </p>
       </Modal>
     );
   }
@@ -896,7 +985,7 @@ function ExamPicker({ subject, categories, records, onClose, onDone, onAddCatego
 
       {mineHits.length > 0 && (
         <div className="sec">
-          <div className="sec-t">{s.name} 에서 쓰는 것</div>
+          <div className="sec-t">사설 모의고사</div>
           <div className="chips">
             {mineHits.map((n) => <button key={n} className="chip" onClick={() => choose(n)}>{n}</button>)}
           </div>
@@ -923,7 +1012,7 @@ function ExamPicker({ subject, categories, records, onClose, onDone, onAddCatego
               <button className="btn sm" style={{ flex: "none" }} onClick={() => { setAdding(false); setCatErr(""); }}>취소</button>
             </div>
             <div className="chips" style={{ marginTop: 8 }}>
-              <button className={"chip" + (newCatAll ? "" : " on")} onClick={() => setNewCatAll(false)}>{s.name} 에서만</button>
+              <button className={"chip" + (newCatAll ? "" : " on")} onClick={() => setNewCatAll(false)}>{subjectName(subject)} 에서만</button>
               <button className={"chip" + (newCatAll ? " on" : "")} onClick={() => setNewCatAll(true)}>모든 과목에서</button>
             </div>
             {catErr && <div className="err" style={{ marginTop: 7 }}>{catErr}</div>}
@@ -952,13 +1041,13 @@ function RecordForm({ init, categories, records, onClose, onSave, onDelete, onAd
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pick, setPick] = useState(() => parseExamName(init.examName, allNames));
 
-  // 고른 것과 응시일이 합쳐져 저장될 이름이 된다
+  // 고른 것이 합쳐져 저장될 이름이 된다
   useEffect(() => {
     setF((p) => {
-      const name = composeExamName(pick, p.examDate);
+      const name = composeExamName(pick);
       return p.examName === name ? p : { ...p, examName: name };
     });
-  }, [pick, f.examDate]);
+  }, [pick]);
 
   /* 이 과목으로 최근에 기록한 시험. 같은 걸 또 볼 때가 많아서 앞에 깔아둔다 */
   const recent = useMemo(() => {
@@ -996,7 +1085,7 @@ function RecordForm({ init, categories, records, onClose, onSave, onDelete, onAd
           {SUBJECTS.map((x) => (
             <button key={x.key} className={"chip" + (x.key === f.subject ? " on" : "")}
               onClick={() => set("subject", x.key)}>
-              {x.name}
+              {subjectName(x.key)}
             </button>
           ))}
         </div>
@@ -1132,7 +1221,7 @@ function Records({ auth, records, openAuth, onNew, onEdit }) {
         <div className="chips sec">
           <button className={"chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>전체</button>
           {used.map((s) => (
-            <button key={s.key} className={"chip" + (filter === s.key ? " on" : "")} onClick={() => setFilter(s.key)}>{s.name}</button>
+            <button key={s.key} className={"chip" + (filter === s.key ? " on" : "")} onClick={() => setFilter(s.key)}>{subjectName(s.key)}</button>
           ))}
         </div>
       )}
@@ -1220,7 +1309,7 @@ function Stats({ auth, records, openAuth }) {
 
       <div className="chips sec">
         {used.map((x) => (
-          <button key={x.key} className={"chip" + (x.key === key ? " on" : "")} onClick={() => setPick(x.key)}>{x.name}</button>
+          <button key={x.key} className={"chip" + (x.key === key ? " on" : "")} onClick={() => setPick(x.key)}>{subjectName(x.key)}</button>
         ))}
       </div>
 
@@ -1260,7 +1349,7 @@ function Stats({ auth, records, openAuth }) {
       )}
 
       <div className="sec">
-        <div className="sec-t">{s.name} 기록</div>
+        <div className="sec-t">{subjectName(key)} 기록</div>
         <div className="card pad">
           <table className="tbl">
             <thead><tr><th>날짜</th><th>시험</th><th>원점수</th><th>등급</th></tr></thead>
@@ -1282,8 +1371,71 @@ function Stats({ auth, records, openAuth }) {
 }
 
 /* ====== 계정 ====== */
-function Account({ auth, records, categories, openAuth, onLogout, onRemoveCategory, theme, setTheme }) {
+/* 계정 화면의 카테고리 한 줄. 이름을 바꾸거나 지운다 */
+function CategoryRow({ cat, used, first, onRename, onRemove }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(cat.name);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setBusy(true);
+    const r = await onRename(cat, name);
+    setBusy(false);
+    if (r && r.error) return setErr(r.error);
+    setErr(""); setEditing(false);
+  };
+
+  if (editing) {
+    return (
+      <div style={{ padding: "11px 0", borderTop: first ? "none" : "1px solid var(--line)" }}>
+        <div className="row">
+          <input className="in" value={name} autoFocus
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
+          <button className="btn pri sm" style={{ flex: "none" }} disabled={busy} onClick={submit}>저장</button>
+          <button className="btn sm" style={{ flex: "none" }}
+            onClick={() => { setEditing(false); setName(cat.name); setErr(""); }}>취소</button>
+        </div>
+        {err && <div className="err" style={{ marginTop: 7 }}>{err}</div>}
+        {used > 0 && (
+          <div style={{ fontSize: 12, color: "var(--tx3)", marginTop: 7, marginLeft: 3, lineHeight: 1.5 }}>
+            이 이름으로 남긴 기록 {used}개도 같이 바뀌어요.
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 8,
+      padding: "11px 0", borderTop: first ? "none" : "1px solid var(--line)",
+    }}>
+      <span style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+        <span style={{ fontWeight: 600, fontSize: 14.5, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {cat.name}
+        </span>
+        <span style={{ fontSize: 11.5, color: "var(--tx3)", fontWeight: 600 }}>
+          {cat.subject ? subjectName(cat.subject) : "모든 과목"} · 기록 {used}개
+        </span>
+      </span>
+      <button className="btn sm" style={{ flex: "none" }} onClick={() => setEditing(true)}>이름</button>
+      <button className="btn sm danger" style={{ flex: "none" }} onClick={() => onRemove(cat)}>지우기</button>
+    </div>
+  );
+}
+
+function Account({ auth, records, categories, settings, openAuth, onLogout, onRemoveCategory, onRenameCategory, onSaveSettings, theme, setTheme }) {
   const canEdit = !HAS_SB || !!auth;
+  const [setErr, setSetErr] = useState("");
+  const pickTamgu = async (which, value) => {
+    const next = { ...settings, [which]: value };
+    const r = await onSaveSettings(next);
+    setSetErr((r && r.error) || "");
+  };
+  const usedCount = (name) =>
+    records.filter((r) => r.examName === name || r.examName.indexOf(name + " ") === 0).length;
   return (
     <div className="wrap">
       <div className="h1">계정</div>
@@ -1312,6 +1464,31 @@ function Account({ auth, records, categories, openAuth, onLogout, onRemoveCatego
 
       {canEdit && (
         <div className="sec">
+          <div className="sec-t">탐구 과목</div>
+          <div className="card pad">
+            <p className="sub" style={{ marginBottom: 12, fontSize: 12.5 }}>
+              지정하면 앱 곳곳에서 탐구 1, 탐구 2 대신 이 과목 이름이 나와요.
+            </p>
+            {[["tamgu1", "탐구 1"], ["tamgu2", "탐구 2"]].map(([k, label]) => (
+              <div className="fld" key={k}>
+                <label>{label}</label>
+                <select className="in" value={settings[k] || ""} onChange={(e) => pickTamgu(k, e.target.value)}>
+                  <option value="">고르지 않음</option>
+                  {TAMGU_CHOICES.map((g) => (
+                    <optgroup key={g.group} label={g.group}>
+                      {g.items.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+            ))}
+            {setErr && <div className="err">{setErr}</div>}
+          </div>
+        </div>
+      )}
+
+      {canEdit && (
+        <div className="sec">
           <div className="sec-t">내가 만든 시험 카테고리</div>
           <div className="card pad">
             {categories.length === 0 ? (
@@ -1321,24 +1498,8 @@ function Account({ auth, records, categories, openAuth, onLogout, onRemoveCatego
             ) : (
               <div className="lst" style={{ gap: 0 }}>
                 {categories.map((c, i) => (
-                  <div key={c.id} style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "11px 0", borderTop: i ? "1px solid var(--line)" : "none",
-                  }}>
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-                      <span style={{ fontWeight: 600, fontSize: 14.5, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.name}
-                      </span>
-                      <span style={{ fontSize: 11.5, color: "var(--tx3)", fontWeight: 600 }}>
-                        {c.subject ? subjectOf(c.subject).name : "모든 과목"}
-                      </span>
-                    </span>
-                    <span style={{ fontSize: 12, color: "var(--tx3)", flex: "none" }}>
-                      {records.filter((r) => r.examName === c.name || r.examName.indexOf(c.name + " ") === 0).length}개
-                    </span>
-                    <button className="btn sm danger" style={{ flex: "none" }}
-                      onClick={() => onRemoveCategory(c)}>지우기</button>
-                  </div>
+                  <CategoryRow key={c.id} cat={c} used={usedCount(c.name)} first={i === 0}
+                    onRename={onRenameCategory} onRemove={onRemoveCategory} />
                 ))}
               </div>
             )}
@@ -1366,7 +1527,7 @@ function Account({ auth, records, categories, openAuth, onLogout, onRemoveCatego
               {SUBJECTS.map((s, i) => (
                 <tr key={s.key}>
                   <td style={{ color: "var(--tx3)" }}>{i + 1}</td>
-                  <td style={{ fontWeight: 700 }}>{s.name}</td>
+                  <td style={{ fontWeight: 700 }}>{subjectName(s.key)}</td>
                   <td style={{ color: "var(--tx2)", whiteSpace: "nowrap" }}>{s.at}</td>
                   <td style={{ color: "var(--tx2)" }}>{s.count}개</td>
                 </tr>
@@ -1387,6 +1548,7 @@ function App() {
   const [auth, setAuth] = useState(null);
   const [records, setRecords] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [settings, setSettings] = useState({ tamgu1: "", tamgu2: "" });
   const [loading, setLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
   const [form, setForm] = useState(null);
@@ -1431,6 +1593,16 @@ function App() {
       // 카테고리를 못 불러와도 기본 목록으로 기록은 남길 수 있어야 한다
       console.warn("카테고리를 불러오지 못했습니다:", e);
       setCategories([]);
+    }
+    try {
+      const v = await store.getSettings(userId);
+      applyTamguNames(v);
+      setSettings(v);
+    } catch (e) {
+      // 설정을 못 읽으면 탐구 1, 탐구 2 로 그냥 보여준다
+      console.warn("설정을 불러오지 못했습니다:", e);
+      applyTamguNames(null);
+      setSettings({ tamgu1: "", tamgu2: "" });
     }
   }, []);
 
@@ -1529,6 +1701,45 @@ function App() {
       return { error: "추가하지 못했어요." + (why ? " " + why : "") };
     }
   };
+  /* 카테고리 이름을 바꾸면 그 이름으로 남긴 기록도 같이 바꾼다.
+     안 그러면 흐름 화면에서 같은 시험이 둘로 갈라진다 */
+  const renameCategory = async (c, name) => {
+    const next = String(name || "").trim();
+    if (!next) return { error: "이름을 적어 주세요." };
+    if (next === c.name) return {};
+    if (isBaseCat(next)) return { error: "이미 있는 카테고리예요." };
+    if (categories.some((x) => x.id !== c.id && x.name === next && x.subject === c.subject))
+      return { error: "이미 있는 카테고리예요." };
+    try {
+      const updated = await store.renameCategory(c.id, next);
+      const touched = records.filter((r) => r.examName === c.name || r.examName.indexOf(c.name + " ") === 0);
+      for (const r of touched) {
+        await store.setRecordName(r.id, next + r.examName.slice(c.name.length));
+      }
+      setCategories((p) => p.map((x) => (x.id === c.id ? updated : x)));
+      setRecords((p) => p.map((r) =>
+        touched.some((t) => t.id === r.id) ? { ...r, examName: next + r.examName.slice(c.name.length) } : r
+      ));
+      return {};
+    } catch (e) {
+      console.warn("이름 바꾸기 실패:", e);
+      const why = (e && (e.message || e.hint)) || "";
+      return { error: "바꾸지 못했어요." + (why ? " " + why : "") };
+    }
+  };
+  const saveSettings = async (v) => {
+    try {
+      await store.saveSettings(auth ? auth.id : null, v);
+      applyTamguNames(v);
+      setSettings({ ...v });
+      return {};
+    } catch (e) {
+      console.warn("설정 저장 실패:", e);
+      if (isMissingColumn(e)) return { error: "설정을 담아둘 자리가 아직 없어요. schema.sql 을 실행해 주세요." };
+      const why = (e && (e.message || e.hint)) || "";
+      return { error: "저장하지 못했어요." + (why ? " " + why : "") };
+    }
+  };
   const removeCategory = async (c) => {
     const used = records.filter((r) => r.examName === c.name || r.examName.indexOf(c.name + " ") === 0).length;
     const msg = used
@@ -1611,8 +1822,10 @@ function App() {
       )}
       {tab === "stats" && <Stats auth={auth} records={records} openAuth={() => setAuthOpen(true)} />}
       {tab === "account" && (
-        <Account auth={auth} records={records} categories={categories} openAuth={() => setAuthOpen(true)}
-          onLogout={onLogout} onRemoveCategory={removeCategory} theme={theme} setTheme={setTheme} />
+        <Account auth={auth} records={records} categories={categories} settings={settings}
+          openAuth={() => setAuthOpen(true)} onLogout={onLogout}
+          onRemoveCategory={removeCategory} onRenameCategory={renameCategory} onSaveSettings={saveSettings}
+          theme={theme} setTheme={setTheme} />
       )}
 
       <nav className="nav">

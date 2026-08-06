@@ -11,11 +11,16 @@
 -- 맨 아래 확인 쿼리로 표와 정책이 제대로 생겼는지 본다.
 
 -- ── 1. 회원 ──────────────────────────────────────────────
+-- tamgu1, tamgu2 는 탐구로 무슨 과목을 보는지. 비어 있으면 그냥 탐구 1, 탐구 2 로 보인다
 create table if not exists public.profiles (
   id         uuid primary key references auth.users(id) on delete cascade,
   username   text not null unique,
+  tamgu1     text,
+  tamgu2     text,
   created_at timestamptz not null default now()
 );
+alter table public.profiles add column if not exists tamgu1 text;
+alter table public.profiles add column if not exists tamgu2 text;
 
 alter table public.profiles enable row level security;
 
