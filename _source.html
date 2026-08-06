@@ -143,7 +143,7 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-const APP_VERSION = "1.3.0";
+const APP_VERSION = "1.4.0";
 
 /* ====== Supabase 설정 ======
    Supabase 프로젝트를 만든 뒤 아래 두 줄을 채우세요.
@@ -228,6 +228,103 @@ const EXAM_YEARS = (() => {
   for (let y = now; y >= 2005; y--) out.push(String(y));
   return out;
 })();
+/* ====== 등급컷으로 백분위 잡기 ======
+   사설 모의고사는 표본이 적어 백분위를 못 내고 예상 등급컷만 주는 곳이 많다.
+   등급별 누적 비율은 정해져 있으니, 등급컷 표와 내 원점수가 있으면
+   내가 어느 등급 어디쯤인지 비례로 잡을 수 있다.
+
+   1등급컷에 딱 걸치면 상위 4% 이므로 백분위 96. 아래는 그 값들이다. */
+const CUT_PERCENTILES = [96, 89, 77, 60, 40, 23, 11, 4];
+// 영어와 한국사는 절대평가라 백분위 자체가 없다
+const hasPercentile = (subjectKey) => subjectKey !== "english" && subjectKey !== "history";
+
+function estimatePercentile(cuts, rawScore, subjectKey) {
+  if (!hasPercentile(subjectKey)) return null;
+  if (!Array.isArray(cuts) || rawScore === null || rawScore === undefined || rawScore === "") return null;
+  const R = Number(rawScore);
+  if (!isFinite(R)) return null;
+
+  const pts = [];
+  cuts.forEach((c, i) => {
+    const v = Number(c);
+    if (c === null || c === undefined || c === "" || !isFinite(v)) return;
+    if (i < CUT_PERCENTILES.length) pts.push({ s: v, p: CUT_PERCENTILES[i] });
+  });
+  if (!pts.length) return null;
+  pts.sort((a, b) => a.s - b.s);
+
+  // 0점은 백분위 0, 만점은 100 으로 양끝을 잡아두고 그 사이를 잇는다
+  const max = subjectOf(subjectKey).max;
+  const all = [{ s: 0, p: 0 }];
+  pts.forEach((q) => { if (q.s > all[all.length - 1].s) all.push(q); });
+  if (max > all[all.length - 1].s) all.push({ s: max, p: 100 });
+
+  if (R <= all[0].s) return all[0].p;
+  if (R >= all[all.length - 1].s) return all[all.length - 1].p;
+  for (let i = 0; i < all.length - 1; i++) {
+    const lo = all[i], hi = all[i + 1];
+    if (R >= lo.s && R <= hi.s) {
+      const t = hi.s === lo.s ? 1 : (R - lo.s) / (hi.s - lo.s);
+      return Math.max(0, Math.min(100, Math.round(lo.p + t * (hi.p - lo.p))));
+    }
+  }
+  return null;
+}
+/* 적어둔 백분위가 있으면 그걸 쓰고, 없으면 등급컷으로 잡은 값을 쓴다 */
+function percentileOf(r) {
+  if (r.percentile !== null && r.percentile !== undefined) return { v: r.percentile, guess: false };
+  const g = estimatePercentile(r.gradeCuts, r.rawScore, r.subject);
+  return g === null ? { v: null, guess: false } : { v: g, guess: true };
+}
+
+/* ====== 등급컷으로 표준점수 잡기 ======
+   등급컷마다 대응하는 z 값이 정해져 있다. 상위 4% 자리의 z 는 1.751 이다.
+   그러니 (z, 원점수) 짝을 여러 개 놓고 직선을 맞추면 평균과 표준편차가 나오고,
+   거기서 표준점수를 낸다.
+
+   이건 성적이 정규분포를 이룬다고 가정하는 것이다. 실제로는 만점자가 몰리거나
+   한쪽으로 쏠려서 어긋난다. 백분위 추정과 달리 오차에 한계가 없으니
+   화면에서는 반드시 예상값이라고 밝힌다. */
+const CUT_Z = [1.751, 1.227, 0.739, 0.253, -0.253, -0.739, -1.227, -1.751];
+// 국어와 수학은 평균 100 표준편차 20, 탐구와 제2외국어는 평균 50 표준편차 10 을 쓴다
+const stdScale = (k) => (k === "korean" || k === "math" ? { m: 100, sd: 20 } : { m: 50, sd: 10 });
+
+function estimateStdScore(cuts, rawScore, subjectKey) {
+  if (!hasPercentile(subjectKey)) return null; // 영어·한국사는 절대평가
+  if (!Array.isArray(cuts) || rawScore === null || rawScore === undefined || rawScore === "") return null;
+  const R = Number(rawScore);
+  if (!isFinite(R)) return null;
+
+  const zs = [], ss = [];
+  cuts.forEach((c, i) => {
+    const v = Number(c);
+    if (c === null || c === undefined || c === "" || !isFinite(v)) return;
+    if (i < CUT_Z.length) { zs.push(CUT_Z[i]); ss.push(v); }
+  });
+  if (zs.length < 2) return null; // 점이 둘은 있어야 직선을 그린다
+
+  const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  const zbar = mean(zs), sbar = mean(ss);
+  let num = 0, den = 0;
+  for (let i = 0; i < zs.length; i++) {
+    num += (zs[i] - zbar) * (ss[i] - sbar);
+    den += (zs[i] - zbar) * (zs[i] - zbar);
+  }
+  if (den === 0) return null;
+  const sd = num / den;          // 원점수 기준 표준편차
+  if (!isFinite(sd) || sd <= 0) return null;
+  const avg = sbar - sd * zbar;  // 원점수 기준 평균
+
+  const sc = stdScale(subjectKey);
+  const out = Math.round(sc.m + sc.sd * ((R - avg) / sd));
+  return isFinite(out) ? Math.max(0, out) : null;
+}
+function stdScoreOf(r) {
+  if (r.stdScore !== null && r.stdScore !== undefined) return { v: r.stdScore, guess: false };
+  const g = estimateStdScore(r.gradeCuts, r.rawScore, r.subject);
+  return g === null ? { v: null, guess: false } : { v: g, guess: true };
+}
+
 /* 이 카테고리로 몇 회차까지 기록했는지 보고 다음 회차를 미리 골라준다 */
 function suggestRound(records, cat) {
   let max = 0;
@@ -344,6 +441,7 @@ const mapRecord = (r) => ({
   percentile: r.percentile === null || r.percentile === undefined ? null : Number(r.percentile),
   grade: r.grade === null || r.grade === undefined ? null : Number(r.grade),
   wrongNos: r.wrong_nos || [],
+  gradeCuts: r.grade_cuts || [],
   durationSec: r.duration_sec === null || r.duration_sec === undefined ? null : Number(r.duration_sec),
   memo: r.memo || "",
   createdAt: r.created_at ? Date.parse(r.created_at) : Date.now(),
@@ -351,7 +449,8 @@ const mapRecord = (r) => ({
 const toRow = (v) => ({
   exam_name: v.examName, exam_date: v.examDate, subject: v.subject, detail: v.detail || "",
   raw_score: v.rawScore, std_score: v.stdScore, percentile: v.percentile, grade: v.grade,
-  wrong_nos: v.wrongNos || [], duration_sec: v.durationSec, memo: v.memo || "",
+  wrong_nos: v.wrongNos || [], grade_cuts: v.gradeCuts || null,
+  duration_sec: v.durationSec, memo: v.memo || "",
 });
 /* 표가 아직 없을 때 Supabase 가 주는 응답. 기다린다고 낫는 게 아니라서
    "잠시 뒤에 다시" 라고 하면 안 된다. schema.sql 을 실행해야 한다 */
@@ -857,6 +956,9 @@ function Timer({ initialSubject, onRecord }) {
 /* ====== 기록 ====== */
 function RecordCard({ rec, onClick }) {
   const s = subjectOf(rec.subject);
+  // 적어둔 값이 없으면 등급컷으로 잡은 값
+  const pc = percentileOf(rec);
+  const ss = stdScoreOf(rec);
   return (
     <button className="card rec" onClick={onClick}>
       <div className="top">
@@ -867,8 +969,14 @@ function RecordCard({ rec, onClick }) {
       <div className="nums">
         <div className="nm-i"><b>{rec.rawScore === null ? "—" : rec.rawScore}</b><span>원점수</span></div>
         <div className="nm-i"><b style={{ color: gradeColor(rec.grade) }}>{rec.grade || "—"}</b><span>등급</span></div>
-        <div className="nm-i"><b>{rec.percentile === null ? "—" : rec.percentile}</b><span>백분위</span></div>
-        <div className="nm-i"><b>{rec.stdScore === null ? "—" : rec.stdScore}</b><span>표준점수</span></div>
+        <div className="nm-i">
+          <b style={pc.guess ? { color: "var(--tx2)" } : null}>{pc.v === null ? "—" : pc.v}</b>
+          <span>{pc.guess ? "예상 백분위" : "백분위"}</span>
+        </div>
+        <div className="nm-i">
+          <b style={ss.guess ? { color: "var(--tx2)" } : null}>{ss.v === null ? "—" : ss.v}</b>
+          <span>{ss.guess ? "예상 표준점수" : "표준점수"}</span>
+        </div>
         {rec.wrongNos.length > 0 && (
           <div className="nm-i"><b style={{ color: "var(--danger)" }}>{rec.wrongNos.length}</b><span>틀린 문항</span></div>
         )}
@@ -883,7 +991,8 @@ function RecordCard({ rec, onClick }) {
 
 const emptyForm = (over) => ({
   examName: "", examDate: todayStr(), subject: "korean", detail: "",
-  rawScore: "", stdScore: "", percentile: "", grade: "", wrong: "", durationSec: null, memo: "",
+  rawScore: "", stdScore: "", percentile: "", grade: "", wrong: "",
+  cuts: ["", "", "", "", "", "", "", ""], durationSec: null, memo: "",
   ...over,
 });
 
@@ -1050,6 +1159,17 @@ function RecordForm({ init, categories, records, onClose, onSave, onDelete, onAd
   }, [pick]);
 
   /* 이 과목으로 최근에 기록한 시험. 같은 걸 또 볼 때가 많아서 앞에 깔아둔다 */
+  /* 등급컷. 아는 자리만 적어도 되고, 하나라도 있으면 백분위를 잡아준다 */
+  const [cutsOpen, setCutsOpen] = useState(() => (init.cuts || []).some((c) => c !== "" && c !== null));
+  const cutsFilled = (f.cuts || []).some((c) => c !== "" && c !== null);
+  const guessed = estimatePercentile(f.cuts, f.rawScore, f.subject);
+  const guessedStd = estimateStdScore(f.cuts, f.rawScore, f.subject);
+  const setCut = (i, v) => setF((p) => {
+    const next = (p.cuts || []).slice();
+    next[i] = v;
+    return { ...p, cuts: next };
+  });
+
   const recent = useMemo(() => {
     const out = [];
     (records || []).forEach((r) => {
@@ -1071,6 +1191,7 @@ function RecordForm({ init, categories, records, onClose, onSave, onDelete, onAd
       examName: f.examName.trim(), examDate: f.examDate, subject: f.subject, detail: f.detail.trim(),
       rawScore: numOrNull(f.rawScore), stdScore: numOrNull(f.stdScore),
       percentile: numOrNull(f.percentile), grade, wrongNos: wrongList,
+      gradeCuts: cutsFilled ? f.cuts.map(numOrNull) : null,
       durationSec: f.durationSec, memo: f.memo.trim(),
     });
     setBusy(false);
@@ -1143,6 +1264,37 @@ function RecordForm({ init, categories, records, onClose, onSave, onDelete, onAd
           <input className="in" type="number" inputMode="numeric" value={f.percentile} onChange={(e) => set("percentile", e.target.value)} />
         </div>
       </div>
+      {hasPercentile(f.subject) && (
+        <div className="fld">
+          {!cutsOpen ? (
+            <button className="btn wide sm" onClick={() => setCutsOpen(true)}>
+              등급컷 적기
+            </button>
+          ) : (
+            <div>
+              <label>등급컷 원점수</label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 7 }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((g, i) => (
+                  <div key={g}>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 700, marginBottom: 3, textAlign: "center" }}>{g}등급</div>
+                    <input className="in" style={{ padding: "9px 6px", textAlign: "center", fontSize: 14 }}
+                      type="number" inputMode="numeric" value={f.cuts[i] || ""}
+                      onChange={(e) => setCut(i, e.target.value)} />
+                  </div>
+                ))}
+              </div>
+              <p className="sub" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
+                {guessed !== null
+                  ? "이 등급컷이면 백분위 " + guessed +
+                    (guessedStd !== null ? ", 표준점수 " + guessedStd : "") +
+                    " 쯤이에요. 위 칸을 비워두면 이 값으로 흐름에 넣어드려요." +
+                    (guessedStd !== null ? " 표준점수는 분포를 정규분포로 놓고 잡은 거라 몇 점씩 어긋날 수 있어요." : "")
+                  : "아는 등급만 적어도 돼요. 원점수까지 있으면 백분위를 잡아드려요."}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="fld">
         <label>틀린 문항 번호</label>
@@ -1238,15 +1390,21 @@ function Records({ auth, records, openAuth, onNew, onEdit }) {
 }
 
 /* ====== 통계 ====== */
-function LineChart({ points, color, max }) {
-  const W = 300, H = 130, P = 10;
+/* invert 는 등급처럼 숫자가 작을수록 좋은 값에 쓴다. 1등급이 위로 간다 */
+function LineChart({ points, color, min, max, invert }) {
+  const W = 300, H = 130, P = 14;
   if (points.length === 0) return null;
   const top = max || Math.max.apply(null, points.map((p) => p.v)) || 1;
-  const bottom = 0;
+  const bottom = min || 0;
+  const span = top - bottom || 1;
   const x = (i) => (points.length === 1 ? W / 2 : P + (i * (W - P * 2)) / (points.length - 1));
-  const y = (v) => H - P - ((v - bottom) / (top - bottom || 1)) * (H - P * 2);
+  const y = (v) => invert
+    ? P + ((v - bottom) / span) * (H - P * 2)
+    : H - P - ((v - bottom) / span) * (H - P * 2);
   const d = points.map((p, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(p.v).toFixed(1)).join(" ");
-  const area = d + " L" + x(points.length - 1).toFixed(1) + " " + (H - P) + " L" + x(0).toFixed(1) + " " + (H - P) + " Z";
+  // 채우는 면의 바닥. 뒤집힌 그래프는 위쪽이 바닥이다
+  const base = invert ? P : H - P;
+  const area = d + " L" + x(points.length - 1).toFixed(1) + " " + base + " L" + x(0).toFixed(1) + " " + base + " Z";
   return (
     <svg viewBox={"0 0 " + W + " " + H} style={{ width: "100%", height: 130, display: "block" }}>
       <path d={area} fill={color} opacity="0.10" />
@@ -1254,7 +1412,7 @@ function LineChart({ points, color, max }) {
       {points.map((p, i) => (
         <g key={i}>
           <circle cx={x(i)} cy={y(p.v)} r="4" fill="var(--card)" stroke={color} strokeWidth="2.5" />
-          <text x={x(i)} y={y(p.v) - 9} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--tx2)">{p.v}</text>
+          <text x={x(i)} y={invert ? y(p.v) + 17 : y(p.v) - 9} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--tx2)">{p.v}</text>
         </g>
       ))}
     </svg>
@@ -1267,13 +1425,45 @@ function Stats({ auth, records, openAuth }) {
   const key = pick && used.some((u) => u.key === pick) ? pick : (used[0] && used[0].key);
   const s = key ? subjectOf(key) : null;
 
+  /* 원점수는 시험마다 난이도가 달라서 흐름을 보기 어렵다.
+     백분위는 남들과 견준 자리라 좋지만, 사설 모의고사는 표본이 적어 집계를 못 내고
+     예상 등급컷만 주는 곳이 많다. 그래서 기출과 사설을 함께 이어서 볼 수 있는 건
+     등급뿐이다. 등급을 먼저 둔다.
+     등급은 숫자가 작을수록 좋아서 그래프를 뒤집는다. */
+  const METRICS = [
+    { key: "grade", name: "등급", get: (r) => r.grade, min: 1, max: 9, invert: true },
+    { key: "percentile", name: "백분위", get: (r) => percentileOf(r).v, min: 0, max: 100, invert: false },
+    { key: "stdScore", name: "표준점수", get: (r) => stdScoreOf(r).v, min: null, max: null, invert: false },
+    { key: "rawScore", name: "원점수", get: (r) => r.rawScore, min: 0, max: null, invert: false },
+  ];
+  const [metricKey, setMetricKey] = useState("grade");
+
   const mine = useMemo(
     () => records.filter((r) => r.subject === key).slice().reverse(),
     [records, key]
   );
-  const scores = mine.filter((r) => r.rawScore !== null);
-  const grades = mine.filter((r) => r.grade !== null);
+  const has = (mm) => mine.filter((r) => mm.get(r) !== null && mm.get(r) !== undefined).length;
+  // 고른 것에 값이 없으면 값이 있는 쪽으로 넘어간다. 빈 그래프를 보여줄 이유가 없다
+  const asked = METRICS.find((x) => x.key === metricKey) || METRICS[0];
+  const m = has(asked) > 0 ? asked : (METRICS.find((x) => has(x) > 0) || asked);
+
+  const vals = mine.filter((r) => m.get(r) !== null && m.get(r) !== undefined);
   const avg = (arr, f) => (arr.length ? Math.round((arr.reduce((a, b) => a + f(b), 0) / arr.length) * 10) / 10 : null);
+  const best = vals.length
+    ? (m.invert ? Math.min.apply(null, vals.map(m.get)) : Math.max.apply(null, vals.map(m.get)))
+    : null;
+  const avgVal = avg(vals, m.get);
+  const missing = mine.length - vals.length;
+  // 등급컷으로 잡은 값이 섞였는지
+  const guessCount = vals.filter((r) =>
+    (m.key === "percentile" && percentileOf(r).guess) || (m.key === "stdScore" && stdScoreOf(r).guess)
+  ).length;
+  /* 표준점수는 100 언저리에서 오르내려서 0부터 그리면 변화가 안 보인다.
+     값 주변만 잘라 보여준다. 원점수는 과목 만점을 위쪽으로 쓴다. */
+  const nums = vals.map(m.get);
+  const lo = m.min !== null ? m.min : Math.max(0, Math.min.apply(null, nums) - 5);
+  const hi = m.max !== null ? m.max
+    : (m.key === "rawScore" ? s.max : Math.max.apply(null, nums) + 5);
 
   const wrongTop = useMemo(() => {
     const m = {};
@@ -1313,20 +1503,43 @@ function Stats({ auth, records, openAuth }) {
         ))}
       </div>
 
+      <div className="chips" style={{ marginTop: 10 }}>
+        {METRICS.map((x) => (
+          <button key={x.key} className={"chip" + (x.key === m.key ? " on" : "")}
+            disabled={has(x) === 0} style={has(x) === 0 ? { opacity: 0.4 } : null}
+            onClick={() => setMetricKey(x.key)}>
+            {x.name}
+          </button>
+        ))}
+      </div>
+
       <div className="card pad sec">
         <div style={{ display: "flex", gap: 18, marginBottom: 12 }}>
-          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800 }}>{mine.length}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>응시</span></div>
-          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800 }}>{avg(scores, (r) => r.rawScore) ?? "—"}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>평균 원점수</span></div>
-          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800 }}>{scores.length ? Math.max.apply(null, scores.map((r) => r.rawScore)) : "—"}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>최고 원점수</span></div>
-          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800, color: gradeColor(avg(grades, (r) => r.grade)) }}>{avg(grades, (r) => r.grade) ?? "—"}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>평균 등급</span></div>
+          <div className="nm-i">
+            <b style={{ fontSize: 20, fontWeight: 800 }}>{mine.length}</b>
+            <span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>응시</span>
+          </div>
+          <div className="nm-i">
+            <b style={{ fontSize: 20, fontWeight: 800, color: m.key === "grade" ? gradeColor(avgVal) : "inherit" }}>{avgVal ?? "—"}</b>
+            <span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>평균 {m.name}</span>
+          </div>
+          <div className="nm-i">
+            <b style={{ fontSize: 20, fontWeight: 800, color: m.key === "grade" ? gradeColor(best) : "inherit" }}>{best ?? "—"}</b>
+            <span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>최고 {m.name}</span>
+          </div>
         </div>
-        {scores.length > 0 ? (
-          <LineChart points={scores.map((r) => ({ v: r.rawScore }))} color={s.color} max={s.max} />
+        {vals.length > 0 ? (
+          <LineChart points={vals.map((r) => ({ v: m.get(r) }))} color={s.color}
+            min={lo} max={hi} invert={m.invert} />
         ) : (
-          <div className="empty" style={{ padding: 24 }}>원점수를 적은 기록이 없어요.</div>
+          <div className="empty" style={{ padding: 24 }}>{m.name}를 적은 기록이 없어요.</div>
         )}
-        <div style={{ fontSize: 11.5, color: "var(--tx3)", textAlign: "center", marginTop: 4, fontWeight: 600 }}>
-          왼쪽이 예전, 오른쪽이 최근이에요
+        <div style={{ fontSize: 11.5, color: "var(--tx3)", textAlign: "center", marginTop: 4, fontWeight: 600, lineHeight: 1.6 }}>
+          왼쪽이 예전, 오른쪽이 최근이에요{m.invert ? " · 위로 갈수록 좋은 등급이에요" : ""}
+          {guessCount > 0 && <br />}
+          {guessCount > 0 ? "그중 " + guessCount + "개는 등급컷으로 잡은 예상값이에요" : ""}
+          {missing > 0 && <br />}
+          {missing > 0 ? m.name + "를 알 수 없는 기록 " + missing + "개는 빠졌어요" : ""}
         </div>
       </div>
 
@@ -1352,12 +1565,15 @@ function Stats({ auth, records, openAuth }) {
         <div className="sec-t">{subjectName(key)} 기록</div>
         <div className="card pad">
           <table className="tbl">
-            <thead><tr><th>날짜</th><th>시험</th><th>원점수</th><th>등급</th></tr></thead>
+            <thead><tr><th>날짜</th><th>시험</th><th>백분위</th><th>원점수</th><th>등급</th></tr></thead>
             <tbody>
               {mine.slice().reverse().map((r) => (
                 <tr key={r.id}>
                   <td style={{ color: "var(--tx3)", whiteSpace: "nowrap" }}>{fmtDay(r.examDate)}</td>
                   <td style={{ fontWeight: 600 }}>{r.examName}</td>
+                  <td style={percentileOf(r).guess ? { color: "var(--tx3)" } : null}>
+                    {percentileOf(r).v === null ? "—" : percentileOf(r).v + (percentileOf(r).guess ? "*" : "")}
+                  </td>
                   <td>{r.rawScore === null ? "—" : r.rawScore}</td>
                   <td style={{ fontWeight: 800, color: gradeColor(r.grade) }}>{r.grade || "—"}</td>
                 </tr>
@@ -1775,7 +1991,12 @@ function App() {
     stdScore: r.stdScore === null ? "" : String(r.stdScore),
     percentile: r.percentile === null ? "" : String(r.percentile),
     grade: r.grade === null ? "" : String(r.grade),
-    wrong: (r.wrongNos || []).join(" "), durationSec: r.durationSec, memo: r.memo,
+    wrong: (r.wrongNos || []).join(" "),
+    cuts: [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+      const c = (r.gradeCuts || [])[i];
+      return c === null || c === undefined ? "" : String(c);
+    }),
+    durationSec: r.durationSec, memo: r.memo,
   });
 
   if (loading) {

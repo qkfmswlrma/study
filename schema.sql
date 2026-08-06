@@ -66,6 +66,10 @@ create table if not exists public.exam_records (
   created_at   timestamptz not null default now()
 );
 
+-- 등급컷 여덟 개 (1등급컷부터 8등급컷까지의 원점수). 모르는 자리는 비워둔다.
+-- 사설은 백분위를 안 주고 예상 등급컷만 주는 곳이 많아서, 이걸로 백분위를 잡는다.
+alter table public.exam_records add column if not exists grade_cuts int[];
+
 create index if not exists exam_records_user_date
   on public.exam_records (user_id, exam_date desc);
 

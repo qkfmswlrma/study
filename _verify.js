@@ -52,6 +52,10 @@ const RECORDS = empty ? [] : [
   // 점수를 안 적은 기록도 화면이 안 깨져야 한다
   { id: "r4", user_id: UID, exam_name: "사설 모의고사", exam_date: "2026-07-15", subject: "english", detail: "",
     raw_score: null, std_score: null, percentile: null, grade: null, wrong_nos: [], duration_sec: null, memo: "", created_at: "2026-07-15T09:00:00Z" },
+  // 사설은 표점·백분위가 없고 예상 등급만 있다. 흐름이 등급으로 이어져야 한다
+  { id: "r5", user_id: UID, exam_name: "이감 3회", exam_date: "2026-07-20", subject: "korean", detail: "화법과 작문",
+    raw_score: 82, std_score: null, percentile: null, grade: 2, wrong_nos: [20, 27, 33],
+    grade_cuts: [88, 80, 71, 60, 48, 36, 25, 15], duration_sec: 4800, memo: "", created_at: "2026-07-20T10:00:00Z" },
 ];
 
 // 내가 만든 시험 카테고리. subject 가 null 이면 전 과목에서 보인다
