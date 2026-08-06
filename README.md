@@ -12,8 +12,13 @@ _serve.js      로컬 확인용 서버
 _redirects     Cloudflare Pages 용
 ```
 
-도구 파일 이름이 밑줄로 시작하는 이유는, Cloudflare Pages 가 밑줄로 시작하는 파일을
-정적 자산에서 빼기 때문이다. 저장소에는 남기고 사이트에서는 열리지 않게 한다.
+도구 파일 이름 앞의 밑줄은 그냥 표시일 뿐이다.
+**밑줄을 붙여도 Cloudflare Pages 는 파일을 감춰주지 않는다.**
+`_redirects` `_headers` `_worker.js` 처럼 Cloudflare 가 설정으로 쓰는 이름만 빠지고,
+나머지는 전부 그대로 열린다. `_source.html` 도 `/_source` 로 열린다.
+
+정말 감춰야 하는 파일이 생기면 저장소에 두지 말거나,
+빌드 결과만 담은 폴더를 만들어 Pages 의 출력 폴더로 지정해야 한다.
 
 ## 처음 받았다면
 
