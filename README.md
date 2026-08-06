@@ -40,7 +40,13 @@ node _verify.js index.html /timer
 node _verify.js index.html /records --login
 node _verify.js index.html /stats --login
 node _verify.js index.html /records --empty
+node _verify.js index.html /records --login --form
 ```
+
+`--form` 은 기록 입력창을 열어 시험 고르는 칸까지 눌러본다.
+글자 입력칸은 여기서 흉내 낼 수 없다. jsdom 에서 React 18 제어 입력칸은
+값을 바꿔치기하고 input 을 쏴도 onChange 가 오지 않는다. 드롭다운은 된다.
+그래서 확인이 필요한 조작은 되도록 드롭다운이나 버튼으로 만든다.
 
 한글이 유실되지 않았는지도 본다. 0개가 아니면 배포하지 않는다.
 
@@ -61,8 +67,15 @@ node _serve.js 8788
 `_source.html` 위쪽 `SUPABASE_URL` 과 `SUPABASE_ANON_KEY` 로 붙는다.
 anon 키는 브라우저에 나가는 값이라 저장소에 있어도 된다. 실제 방어는 RLS 정책이 한다.
 
-표와 정책은 `schema.sql` 에 있다. 프로젝트를 새로 만들면 이걸 먼저 실행한다.
-두 값을 비워두면 기록이 이 기기에만 남는 체험 모드로 돌아간다.
+표와 정책은 `schema.sql` 에 있다. 전부 몇 번을 돌려도 같은 결과가 나오게 써놨으니,
+표가 늘면 통째로 다시 실행하면 된다. 두 값을 비워두면 기록이 이 기기에만 남는
+체험 모드로 돌아간다.
+
+| 표 | |
+|---|---|
+| `profiles` | 회원 |
+| `exam_records` | 모의고사 기록 |
+| `exam_categories` | 내가 만든 시험 카테고리. `subject` 가 비면 전 과목 |
 
 ## 알아둘 것
 

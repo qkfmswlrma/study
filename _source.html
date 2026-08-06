@@ -81,6 +81,8 @@
   .in{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card2);font-size:15px;outline:none}
   .in:focus{border-color:var(--pri);background:var(--card)}
   textarea.in{min-height:78px;resize:vertical;line-height:1.55}
+  /* 아이폰은 select 를 눌러야 목록이 뜬다. 고른 값이 잘 보이게 굵게 둔다 */
+  select.in{font-weight:600;padding-right:34px}
   .row{display:flex;gap:9px}
   .row>*{flex:1;min-width:0}
 
@@ -141,7 +143,7 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
-const APP_VERSION = "1.0.0";
+const APP_VERSION = "1.2.0";
 
 /* ====== Supabase 설정 ======
    Supabase 프로젝트를 만든 뒤 아래 두 줄을 채우세요.
@@ -168,7 +170,55 @@ const SUBJECTS = [
 ];
 const subjectOf = (k) => SUBJECTS.find((s) => s.key === k) || SUBJECTS[0];
 
-const EXAM_PRESETS = ["3월 학력평가", "5월 학력평가", "6월 모의평가", "7월 학력평가", "9월 모의평가", "10월 학력평가", "수능", "사설 모의고사"];
+/* ====== 시험 카테고리 ======
+   평가원과 교육청 시험은 누가 봐도 같으니 처음부터 깔아둔다.
+   사설처럼 사람마다 다른 건 각자 추가해서 쓴다. 추가한 건 계정에 남는다. */
+const BASE_CATEGORIES = [
+  "3월 학력평가", "5월 학력평가", "6월 모의평가",
+  "7월 학력평가", "9월 모의평가", "10월 학력평가", "수능",
+];
+const ROUNDS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+const isBaseCat = (n) => BASE_CATEGORIES.indexOf(n) !== -1;
+
+/* 저장은 합쳐진 이름 한 줄로 한다.
+   평가원·교육청은 해마다 있으니 어느 해인지를 앞에 붙인다. 년도는 따로 묻지 않고
+   바로 아래에서 받는 응시일에서 가져온다. 같은 걸 두 번 고를 이유가 없다.
+   내가 만든 건 몇 회차인지를 뒤에 붙인다.
+   "2026 6월 모의평가"  "이감 3회"
+   (설명을 JSX 안에 주석으로 두면 컴파일 때 통째로 사라져서 여기 적는다) */
+function composeExamName(p, examDate) {
+  if (!p || !p.cat) return p && p.orphan ? p.orphan : "";
+  if (isBaseCat(p.cat)) {
+    const y = String(examDate || "").slice(0, 4);
+    return (/^\d{4}$/.test(y) ? y + " " : "") + p.cat;
+  }
+  return p.cat + (p.round ? " " + p.round + "회" : "");
+}
+/* 합쳐진 이름을 도로 쪼갠다. 못 알아보면 orphan 으로 두고 그대로 보여준다 */
+function parseExamName(name, myNames) {
+  const s = String(name || "").trim();
+  const none = { cat: "", round: "", orphan: "" };
+  if (!s) return none;
+  const withYear = s.match(/^\d{4}\s+(.+)$/);
+  if (withYear && isBaseCat(withYear[1])) return { cat: withYear[1], round: "", orphan: "" };
+  if (isBaseCat(s)) return { cat: s, round: "", orphan: "" };
+  const withRound = s.match(/^(.+?)\s+(\d+)회$/);
+  if (withRound && (myNames || []).indexOf(withRound[1]) !== -1)
+    return { cat: withRound[1], round: withRound[2], orphan: "" };
+  if ((myNames || []).indexOf(s) !== -1) return { cat: s, round: "", orphan: "" };
+  return { cat: "", round: "", orphan: s };
+}
+/* 이 카테고리로 몇 회차까지 기록했는지 보고 다음 회차를 미리 골라준다 */
+function suggestRound(records, cat) {
+  let max = 0;
+  (records || []).forEach((r) => {
+    const s = String(r.examName || "");
+    if (s.indexOf(cat + " ") !== 0) return;
+    const m = s.slice(cat.length + 1).match(/^(\d+)회$/);
+    if (m) max = Math.max(max, Number(m[1]));
+  });
+  return max ? String(max + 1) : "";
+}
 
 /* ====== 수능 날짜 ======
    해마다 11월 셋째 주 목요일입니다. 발표된 날짜가 다르면 SUNEUNG_FIXED 를 고치세요. */
@@ -252,12 +302,16 @@ function pushUrl(path) {
    Supabase 키가 있으면 서버에, 없으면 이 기기에 저장합니다.
    화면은 어느 쪽인지 몰라도 되도록 같은 모양으로 감쌉니다. */
 const LS_REC = "sn-records";
-const readLocal = () => {
-  try { return JSON.parse(localStorage.getItem(LS_REC) || "[]"); } catch (e) { return []; }
+const LS_CAT = "sn-categories";
+const readLS = (key) => {
+  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch (e) { return []; }
 };
-const writeLocal = (rows) => {
-  try { localStorage.setItem(LS_REC, JSON.stringify(rows)); } catch (e) {}
+const writeLS = (key, rows) => {
+  try { localStorage.setItem(key, JSON.stringify(rows)); } catch (e) {}
 };
+const readLocal = () => readLS(LS_REC);
+const writeLocal = (rows) => writeLS(LS_REC, rows);
+const newId = () => "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 const mapRecord = (r) => ({
   id: r.id,
   examName: r.exam_name || "",
@@ -278,6 +332,15 @@ const toRow = (v) => ({
   raw_score: v.rawScore, std_score: v.stdScore, percentile: v.percentile, grade: v.grade,
   wrong_nos: v.wrongNos || [], duration_sec: v.durationSec, memo: v.memo || "",
 });
+/* 표가 아직 없을 때 Supabase 가 주는 응답. 기다린다고 낫는 게 아니라서
+   "잠시 뒤에 다시" 라고 하면 안 된다. schema.sql 을 실행해야 한다 */
+const isMissingTable = (e) =>
+  !!e && (e.code === "PGRST205" || /Could not find the table|schema cache/i.test(e.message || ""));
+const mapCategory = (r) => ({
+  id: r.id, name: r.name || "",
+  subject: r.subject || null, // 비어 있으면 전 과목
+  createdAt: r.created_at ? Date.parse(r.created_at) : 0,
+});
 const sortRecords = (rows) =>
   rows.slice().sort((a, b) => (a.examDate === b.examDate ? b.createdAt - a.createdAt : (a.examDate < b.examDate ? 1 : -1)));
 
@@ -292,7 +355,7 @@ const store = {
   async add(userId, v) {
     if (!HAS_SB) {
       const rows = readLocal();
-      const row = { ...toRow(v), id: "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), created_at: new Date().toISOString() };
+      const row = { ...toRow(v), id: newId(), created_at: new Date().toISOString() };
       rows.push(row); writeLocal(rows);
       return mapRecord(row);
     }
@@ -313,6 +376,33 @@ const store = {
   async remove(id) {
     if (!HAS_SB) { writeLocal(readLocal().filter((r) => r.id !== id)); return; }
     const { error } = await sb.from("exam_records").delete().eq("id", id);
+    if (error) throw error;
+  },
+
+  /* ---- 내가 추가한 시험 카테고리 ---- */
+  async listCategories(userId) {
+    const sortCat = (rows) => rows.slice().sort((a, b) => a.createdAt - b.createdAt);
+    if (!HAS_SB) return sortCat(readLS(LS_CAT).map(mapCategory));
+    if (!userId) return [];
+    const { data, error } = await sb.from("exam_categories").select("*").eq("user_id", userId);
+    if (error) throw error;
+    return sortCat((data || []).map(mapCategory));
+  },
+  async addCategory(userId, name, subject) {
+    if (!HAS_SB) {
+      const rows = readLS(LS_CAT);
+      const row = { id: newId(), name, subject: subject || null, created_at: new Date().toISOString() };
+      rows.push(row); writeLS(LS_CAT, rows);
+      return mapCategory(row);
+    }
+    const { data, error } = await sb.from("exam_categories")
+      .insert({ name, subject: subject || null, user_id: userId }).select().single();
+    if (error) throw error;
+    return mapCategory(data);
+  },
+  async removeCategory(id) {
+    if (!HAS_SB) { writeLS(LS_CAT, readLS(LS_CAT).filter((r) => r.id !== id)); return; }
+    const { error } = await sb.from("exam_categories").delete().eq("id", id);
     if (error) throw error;
   },
 };
@@ -737,7 +827,117 @@ const emptyForm = (over) => ({
   ...over,
 });
 
-function RecordForm({ init, onClose, onSave, onDelete }) {
+/* 시험 고르는 창.
+   목록에서 하나 고르면 되고, 내가 만든 카테고리는 회차까지 한 번 더 고른다.
+   평가원·교육청은 년도를 응시일에서 가져오니 바로 끝난다. */
+function ExamPicker({ subject, categories, records, onClose, onDone, onAddCategory }) {
+  const [q, setQ] = useState("");
+  const [roundFor, setRoundFor] = useState(""); // 회차를 고르는 중인 카테고리
+  const [adding, setAdding] = useState(false);
+  const [newCat, setNewCat] = useState("");
+  const [newCatAll, setNewCatAll] = useState(false);
+  const [catErr, setCatErr] = useState("");
+  const s = subjectOf(subject);
+
+  const mine = categories.filter((c) => !c.subject || c.subject === subject).map((c) => c.name);
+  const hit = (n) => !q.trim() || n.toLowerCase().indexOf(q.trim().toLowerCase()) !== -1;
+  const baseHits = BASE_CATEGORIES.filter(hit);
+  const mineHits = mine.filter(hit);
+
+  const choose = (cat) => {
+    if (isBaseCat(cat)) return onDone({ cat, round: "", orphan: "" });
+    setRoundFor(cat);
+  };
+  const submitCat = async () => {
+    const name = newCat.trim();
+    setCatErr("");
+    if (!name) return setCatErr("이름을 적어 주세요.");
+    if (isBaseCat(name) || mine.indexOf(name) !== -1) return setCatErr("이미 있는 카테고리예요.");
+    const r = await onAddCategory(name, newCatAll ? null : subject);
+    if (r && r.error) return setCatErr(r.error);
+    setNewCat(""); setAdding(false); setNewCatAll(false);
+    setRoundFor(name);
+  };
+
+  if (roundFor) {
+    const suggested = suggestRound(records, roundFor);
+    return (
+      <Modal title={roundFor + " · 몇 회차인가요"} onClose={() => setRoundFor("")}>
+        <div className="chips">
+          <button className="chip" onClick={() => onDone({ cat: roundFor, round: "", orphan: "" })}>회차 없이</button>
+          {ROUNDS.map((n) => (
+            <button key={n} className={"chip" + (String(n) === suggested ? " on" : "")}
+              onClick={() => onDone({ cat: roundFor, round: String(n), orphan: "" })}>
+              {n}회
+            </button>
+          ))}
+        </div>
+        {suggested && (
+          <p className="sub" style={{ marginTop: 12, marginBottom: 0, fontSize: 12.5 }}>
+            {Number(suggested) - 1}회까지 기록하셨어요. {suggested}회를 미리 골라뒀어요.
+          </p>
+        )}
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal title="시험 고르기" onClose={onClose}>
+      <input className="in" value={q} onChange={(e) => setQ(e.target.value)} placeholder="이름으로 찾기" />
+
+      {baseHits.length > 0 && (
+        <div className="sec">
+          <div className="sec-t">평가원·교육청</div>
+          <div className="chips">
+            {baseHits.map((n) => <button key={n} className="chip" onClick={() => choose(n)}>{n}</button>)}
+          </div>
+        </div>
+      )}
+
+      {mineHits.length > 0 && (
+        <div className="sec">
+          <div className="sec-t">{s.name} 에서 쓰는 것</div>
+          <div className="chips">
+            {mineHits.map((n) => <button key={n} className="chip" onClick={() => choose(n)}>{n}</button>)}
+          </div>
+        </div>
+      )}
+
+      {baseHits.length === 0 && mineHits.length === 0 && (
+        <div className="empty" style={{ padding: 28 }}>찾는 시험이 없어요.<br />아래에서 새로 만들 수 있어요.</div>
+      )}
+
+      <div className="sec">
+        {!adding ? (
+          <button className="btn wide" onClick={() => { setAdding(true); setNewCat(q.trim()); setCatErr(""); }}>
+            + 새 카테고리 만들기
+          </button>
+        ) : (
+          <div>
+            <div className="row">
+              <input className="in" value={newCat} autoFocus
+                onChange={(e) => setNewCat(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") submitCat(); }}
+                placeholder="예: 이감, 더프리미엄" />
+              <button className="btn pri sm" style={{ flex: "none" }} onClick={submitCat}>만들기</button>
+              <button className="btn sm" style={{ flex: "none" }} onClick={() => { setAdding(false); setCatErr(""); }}>취소</button>
+            </div>
+            <div className="chips" style={{ marginTop: 8 }}>
+              <button className={"chip" + (newCatAll ? "" : " on")} onClick={() => setNewCatAll(false)}>{s.name} 에서만</button>
+              <button className={"chip" + (newCatAll ? " on" : "")} onClick={() => setNewCatAll(true)}>모든 과목에서</button>
+            </div>
+            {catErr && <div className="err" style={{ marginTop: 7 }}>{catErr}</div>}
+            <div style={{ fontSize: 12, color: "var(--tx3)", marginTop: 7, marginLeft: 3, lineHeight: 1.5 }}>
+              회차는 넣지 마세요. 만들고 나서 따로 고르게 돼요.
+            </div>
+          </div>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+function RecordForm({ init, categories, records, onClose, onSave, onDelete, onAddCategory }) {
   const [f, setF] = useState(init);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
@@ -745,9 +945,35 @@ function RecordForm({ init, onClose, onSave, onDelete }) {
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const wrongList = parseWrong(f.wrong);
 
+  /* 시험 고르기.
+     저장되는 건 합쳐진 이름 한 줄이다. "2026 6월 모의평가", "이감 3회" 처럼.
+     고칠 때는 그 이름을 도로 쪼개서 고른 상태로 되돌린다. */
+  const allNames = categories.map((c) => c.name);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pick, setPick] = useState(() => parseExamName(init.examName, allNames));
+
+  // 고른 것과 응시일이 합쳐져 저장될 이름이 된다
+  useEffect(() => {
+    setF((p) => {
+      const name = composeExamName(pick, p.examDate);
+      return p.examName === name ? p : { ...p, examName: name };
+    });
+  }, [pick, f.examDate]);
+
+  /* 이 과목으로 최근에 기록한 시험. 같은 걸 또 볼 때가 많아서 앞에 깔아둔다 */
+  const recent = useMemo(() => {
+    const out = [];
+    (records || []).forEach((r) => {
+      if (r.subject !== f.subject || !r.examName) return;
+      if (out.indexOf(r.examName) === -1) out.push(r.examName);
+    });
+    return out.slice(0, 4);
+  }, [records, f.subject]);
+  const pickRecent = (name) => setPick(parseExamName(name, allNames));
+
   const save = async () => {
     setErr("");
-    if (!f.examName.trim()) return setErr("시험 이름을 적어 주세요.");
+    if (!f.examName.trim()) return setErr("어떤 시험이었는지 골라 주세요.");
     if (!f.examDate) return setErr("응시한 날짜를 골라 주세요.");
     const grade = numOrNull(f.grade);
     if (grade !== null && (grade < 1 || grade > 9)) return setErr("등급은 1부터 9까지예요.");
@@ -765,24 +991,35 @@ function RecordForm({ init, onClose, onSave, onDelete }) {
   return (
     <Modal title={init.id ? "기록 고치기" : "모의고사 기록"} onClose={onClose}>
       <div className="fld">
-        <label>시험 이름</label>
-        <input className="in" value={f.examName} onChange={(e) => set("examName", e.target.value)} placeholder="예: 2026 6월 모의평가" />
-        <div className="chips" style={{ marginTop: 8 }}>
-          {EXAM_PRESETS.map((p) => (
-            <button key={p} className="chip" onClick={() => set("examName", p)}>{p}</button>
+        <label>과목</label>
+        <div className="chips">
+          {SUBJECTS.map((x) => (
+            <button key={x.key} className={"chip" + (x.key === f.subject ? " on" : "")}
+              onClick={() => set("subject", x.key)}>
+              {x.name}
+            </button>
           ))}
         </div>
       </div>
 
       <div className="fld">
-        <label>과목</label>
-        <div className="chips">
-          {SUBJECTS.map((x) => (
-            <button key={x.key} className={"chip" + (x.key === f.subject ? " on" : "")} onClick={() => set("subject", x.key)}>
-              {x.name}
-            </button>
-          ))}
-        </div>
+        <label>어떤 시험이었나요</label>
+        {recent.length > 0 && (
+          <div className="chips" style={{ marginBottom: 8 }}>
+            {recent.map((n) => (
+              <button key={n} className={"chip" + (f.examName === n ? " on" : "")} onClick={() => pickRecent(n)}>
+                {n}
+              </button>
+            ))}
+          </div>
+        )}
+        <button className="btn wide exname" style={{ justifyContent: "space-between", fontWeight: f.examName ? 700 : 500 }}
+          onClick={() => setPickerOpen(true)}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {f.examName || "눌러서 고르기"}
+          </span>
+          <span style={{ color: "var(--tx3)", flex: "none", marginLeft: 8 }}>▾</span>
+        </button>
       </div>
 
       <div className="row">
@@ -850,6 +1087,15 @@ function RecordForm({ init, onClose, onSave, onDelete }) {
           onClick={() => { if (window.confirm("이 기록을 지울까요? 되돌릴 수 없어요.")) onDelete(init.id); }}>
           기록 지우기
         </button>
+      )}
+
+      {pickerOpen && (
+        <ExamPicker
+          subject={f.subject} categories={categories} records={records}
+          onClose={() => setPickerOpen(false)}
+          onDone={(p) => { setPick(p); setPickerOpen(false); }}
+          onAddCategory={onAddCategory}
+        />
       )}
     </Modal>
   );
@@ -1036,7 +1282,8 @@ function Stats({ auth, records, openAuth }) {
 }
 
 /* ====== 계정 ====== */
-function Account({ auth, records, openAuth, onLogout, theme, setTheme }) {
+function Account({ auth, records, categories, openAuth, onLogout, onRemoveCategory, theme, setTheme }) {
+  const canEdit = !HAS_SB || !!auth;
   return (
     <div className="wrap">
       <div className="h1">계정</div>
@@ -1062,6 +1309,42 @@ function Account({ auth, records, openAuth, onLogout, theme, setTheme }) {
           </div>
         )}
       </div>
+
+      {canEdit && (
+        <div className="sec">
+          <div className="sec-t">내가 만든 시험 카테고리</div>
+          <div className="card pad">
+            {categories.length === 0 ? (
+              <p className="sub" style={{ margin: 0 }}>
+                아직 없어요. 기록할 때 시험 고르는 칸에서 새 카테고리 만들기로 추가하면 여기에 모여요.
+              </p>
+            ) : (
+              <div className="lst" style={{ gap: 0 }}>
+                {categories.map((c, i) => (
+                  <div key={c.id} style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "11px 0", borderTop: i ? "1px solid var(--line)" : "none",
+                  }}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                      <span style={{ fontWeight: 600, fontSize: 14.5, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {c.name}
+                      </span>
+                      <span style={{ fontSize: 11.5, color: "var(--tx3)", fontWeight: 600 }}>
+                        {c.subject ? subjectOf(c.subject).name : "모든 과목"}
+                      </span>
+                    </span>
+                    <span style={{ fontSize: 12, color: "var(--tx3)", flex: "none" }}>
+                      {records.filter((r) => r.examName === c.name || r.examName.indexOf(c.name + " ") === 0).length}개
+                    </span>
+                    <button className="btn sm danger" style={{ flex: "none" }}
+                      onClick={() => onRemoveCategory(c)}>지우기</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="sec">
         <div className="sec-t">화면</div>
@@ -1103,6 +1386,7 @@ function App() {
   const [tab, setTab] = useState(parsePath);
   const [auth, setAuth] = useState(null);
   const [records, setRecords] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
   const [form, setForm] = useState(null);
@@ -1140,6 +1424,13 @@ function App() {
     } catch (e) {
       console.warn("기록을 불러오지 못했습니다:", e);
       setRecords([]);
+    }
+    try {
+      setCategories(await store.listCategories(userId));
+    } catch (e) {
+      // 카테고리를 못 불러와도 기본 목록으로 기록은 남길 수 있어야 한다
+      console.warn("카테고리를 불러오지 못했습니다:", e);
+      setCategories([]);
     }
   }, []);
 
@@ -1204,7 +1495,7 @@ function App() {
   };
   const onLogout = async () => {
     try { if (HAS_SB) await sb.auth.signOut(); } catch (e) {}
-    setAuth(null); setRecords([]); go("home");
+    setAuth(null); setRecords([]); setCategories([]); go("home");
   };
 
   const saveRecord = async (v) => {
@@ -1223,6 +1514,35 @@ function App() {
       return { error: "저장하지 못했어요. 잠시 뒤에 다시 해주세요." };
     }
   };
+  const addCategory = async (name, subject) => {
+    try {
+      const added = await store.addCategory(auth ? auth.id : null, name, subject);
+      setCategories((p) => p.concat([added]));
+      return {};
+    } catch (e) {
+      console.warn("카테고리 추가 실패:", e);
+      if (isMissingTable(e)) return { error: "카테고리를 담아둘 자리가 아직 없어요. schema.sql 을 실행해 주세요." };
+      const dup = e && (e.code === "23505" || /duplicate|unique/i.test(e.message || ""));
+      if (dup) return { error: "이미 있는 카테고리예요." };
+      // 무엇 때문에 막혔는지 화면에서 바로 보여야 고칠 수 있다
+      const why = (e && (e.message || e.hint)) || "";
+      return { error: "추가하지 못했어요." + (why ? " " + why : "") };
+    }
+  };
+  const removeCategory = async (c) => {
+    const used = records.filter((r) => r.examName === c.name || r.examName.indexOf(c.name + " ") === 0).length;
+    const msg = used
+      ? `'${c.name}' 을 지울까요? 이 카테고리로 남긴 기록 ${used}개는 그대로 있어요.`
+      : `'${c.name}' 을 지울까요?`;
+    if (!window.confirm(msg)) return;
+    try {
+      await store.removeCategory(c.id);
+      setCategories((p) => p.filter((x) => x.id !== c.id));
+    } catch (e) {
+      window.alert("지우지 못했어요. 잠시 뒤에 다시 해주세요.");
+    }
+  };
+
   const deleteRecord = async (id) => {
     try {
       await store.remove(id);
@@ -1291,8 +1611,8 @@ function App() {
       )}
       {tab === "stats" && <Stats auth={auth} records={records} openAuth={() => setAuthOpen(true)} />}
       {tab === "account" && (
-        <Account auth={auth} records={records} openAuth={() => setAuthOpen(true)}
-          onLogout={onLogout} theme={theme} setTheme={setTheme} />
+        <Account auth={auth} records={records} categories={categories} openAuth={() => setAuthOpen(true)}
+          onLogout={onLogout} onRemoveCategory={removeCategory} theme={theme} setTheme={setTheme} />
       )}
 
       <nav className="nav">
@@ -1307,7 +1627,10 @@ function App() {
       </nav>
 
       {authOpen && <AuthSheet onClose={() => setAuthOpen(false)} onLogin={onLogin} onSignup={onSignup} />}
-      {form && <RecordForm init={form} onClose={() => setForm(null)} onSave={saveRecord} onDelete={deleteRecord} />}
+      {form && (
+        <RecordForm init={form} categories={categories} records={records} onClose={() => setForm(null)}
+          onSave={saveRecord} onDelete={deleteRecord} onAddCategory={addCategory} />
+      )}
     </div>
   );
 }
