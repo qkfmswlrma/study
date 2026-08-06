@@ -1,0 +1,6 @@
+# Claude Code local config
+.claude/
+
+# verify 용 의존성 (npm i 로 다시 받는다)
+node_modules/
+package-lock.json

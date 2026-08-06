@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>수능 대비</title>
+<meta name="description" content="모의고사 기록과 타이머로 수능을 준비하는 곳" />
+<meta name="theme-color" content="#eef2fa" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="수능 대비" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="수능 대비" />
+<meta property="og:title" content="수능 대비" />
+<meta property="og:description" content="모의고사 기록과 타이머로 수능을 준비하는 곳" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232f6df6'/%3E%3Cstop offset='1' stop-color='%2312b886'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='url(%23g)'/%3E%3Ctext x='32' y='44' font-size='30' font-weight='800' text-anchor='middle' fill='white' font-family='sans-serif'%3ED%3C/text%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg1:#eef2fa; --bg2:#f6f0ff; --bg3:#eafaf3;
+    --card:#ffffff; --card2:#f7f9fc; --line:#e6eaf2;
+    --tx:#171c26; --tx2:#5a6474; --tx3:#8b95a6;
+    --pri:#2f6df6; --pri-soft:rgba(47,109,246,0.10);
+    --warn:#f59e0b; --danger:#ef4444; --ok:#12b886;
+    --shadow:0 2px 10px rgba(23,28,38,0.05), 0 10px 30px rgba(23,28,38,0.05);
+    --nav:rgba(255,255,255,0.82);
+  }
+  html[data-theme="dark"]{
+    --bg1:#0f131b; --bg2:#151426; --bg3:#101d1a;
+    --card:#181d27; --card2:#1f2531; --line:#2a3140;
+    --tx:#e9edf5; --tx2:#9aa5b8; --tx3:#6f7b8f;
+    --pri:#5b8cff; --pri-soft:rgba(91,140,255,0.14);
+    --warn:#fbbf24; --danger:#f87171; --ok:#2dd4a7;
+    --shadow:0 2px 10px rgba(0,0,0,0.28), 0 10px 30px rgba(0,0,0,0.24);
+    --nav:rgba(24,29,39,0.86);
+  }
+  *{box-sizing:border-box}
+  html,body,#root{margin:0;padding:0;min-height:100%}
+  html,body{background:linear-gradient(165deg,var(--bg1) 0%,var(--bg2) 52%,var(--bg3) 100%);background-color:var(--bg1)}
+  body{font-family:'Pretendard','Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;color:var(--tx);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+  button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+  button{cursor:pointer;border:none;background:none;padding:0}
+
+  .sp-splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--tx2)}
+  .sp-splash .lg{width:52px;height:52px;border-radius:15px;background:linear-gradient(140deg,#2f6df6,#12b886);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800}
+  .sp-splash .sp{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--pri);border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .wrap{max-width:560px;margin:0 auto;padding:0 16px 108px}
+  .hd{position:sticky;top:0;z-index:20;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:var(--nav);border-bottom:1px solid var(--line)}
+  .hd-in{max-width:560px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:10px}
+  .hd .logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(140deg,#2f6df6,#12b886);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .hd .nm{font-weight:800;font-size:17px;letter-spacing:-0.4px}
+  .hd .rt{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+  .nav{position:fixed;left:0;right:0;bottom:0;z-index:30;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);background:var(--nav);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+  .nav-in{max-width:560px;margin:0 auto;display:flex}
+  .nav button{flex:1;padding:9px 0 10px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--tx3);font-size:11px;font-weight:600}
+  .nav button.on{color:var(--pri)}
+  .nav .ic{font-size:19px;line-height:1}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+  .pad{padding:18px}
+  .sec{margin-top:18px}
+  .sec-t{font-size:13px;font-weight:700;color:var(--tx3);margin:0 0 9px 4px;letter-spacing:-0.2px}
+  .h1{font-size:22px;font-weight:800;letter-spacing:-0.6px;margin:20px 0 4px}
+  .sub{font-size:13.5px;color:var(--tx2);margin:0 0 2px;line-height:1.55}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:13px;padding:12px 16px;font-weight:700;font-size:14.5px;background:var(--card2);color:var(--tx);border:1px solid var(--line);transition:transform .12s ease}
+  .btn:active{transform:scale(0.975)}
+  .btn.pri{background:var(--pri);color:#fff;border-color:transparent}
+  .btn.danger{background:transparent;color:var(--danger);border-color:var(--line)}
+  .btn.wide{width:100%}
+  .btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+  .btn:disabled{opacity:.45}
+
+  .fld{margin-bottom:13px}
+  .fld label{display:block;font-size:12.5px;font-weight:700;color:var(--tx2);margin:0 0 6px 3px}
+  .in{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card2);font-size:15px;outline:none}
+  .in:focus{border-color:var(--pri);background:var(--card)}
+  textarea.in{min-height:78px;resize:vertical;line-height:1.55}
+  .row{display:flex;gap:9px}
+  .row>*{flex:1;min-width:0}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:13px;font-weight:600;color:var(--tx2)}
+  .chip.on{background:var(--pri-soft);border-color:var(--pri);color:var(--pri)}
+  .badge{display:inline-block;padding:3px 9px;border-radius:8px;font-size:11.5px;font-weight:800;color:#fff}
+
+  .lst{display:flex;flex-direction:column;gap:10px}
+  .rec{padding:14px 15px;display:block;width:100%;text-align:left}
+  .rec .top{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .rec .ttl{flex:1;min-width:0;font-weight:700;font-size:15px;letter-spacing:-0.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rec .dt{font-size:12px;color:var(--tx3);flex:none}
+  .rec .nums{display:flex;flex-wrap:wrap;column-gap:16px;row-gap:8px}
+  .rec .nm-i{display:flex;flex-direction:column;gap:1px}
+  .rec .nm-i b{font-size:17px;font-weight:800;letter-spacing:-0.5px}
+  .rec .nm-i span{font-size:11px;color:var(--tx3);font-weight:600}
+
+  .tmr{display:flex;flex-direction:column;align-items:center;gap:4px;padding:22px 18px 24px}
+  .tmr .clock{font-size:44px;font-weight:800;letter-spacing:-1.8px;font-variant-numeric:tabular-nums;line-height:1.05;white-space:nowrap}
+  .tmr .clock.warn{color:var(--warn)}
+  .tmr .clock.danger{color:var(--danger)}
+  .tmr .lbl{font-size:13.5px;color:var(--tx2);font-weight:600}
+  .ring{position:relative;width:232px;height:232px;margin:6px 0 10px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+
+  .modal{position:fixed;inset:0;z-index:60;background:rgba(12,16,24,0.45);display:flex;align-items:flex-end;justify-content:center;padding:0}
+  .modal .sheet{width:100%;max-width:560px;background:var(--card);border-radius:22px 22px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;animation:up .22s ease}
+  @keyframes up{from{transform:translateY(22px);opacity:.6}to{transform:none;opacity:1}}
+  @media (min-width:600px){.modal{align-items:center}.modal .sheet{border-radius:20px;margin:0 16px}}
+
+  .banner{display:flex;gap:9px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--pri-soft);color:var(--tx);font-size:12.5px;line-height:1.55;margin-top:14px}
+  .empty{text-align:center;padding:44px 16px;color:var(--tx3);font-size:13.5px;line-height:1.7}
+  .err{color:var(--danger);font-size:12.5px;font-weight:600;margin:2px 0 10px 3px}
+  .dday{display:flex;align-items:baseline;gap:8px}
+  .dday b{font-size:40px;font-weight:800;letter-spacing:-1.6px;line-height:1}
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;color:var(--tx3);font-weight:700;font-size:11.5px;padding:0 0 7px}
+  .tbl td{padding:8px 0;border-top:1px solid var(--line)}
+</style>
+<script>
+  try{var t=localStorage.getItem('sn-theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t;var mc=document.querySelector('meta[name="theme-color"]');if(mc)mc.setAttribute('content',t==='dark'?'#0f131b':'#eef2fa');}catch(e){}
+</script>
+<script defer crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script defer crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4"></script>
+<script defer src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"></script>
+</head>
+<body>
+<div id="root">
+  <div class="sp-splash">
+    <div class="lg">D</div>
+    <div style="font-weight:700;font-size:15px">수능 대비 불러오는 중…</div>
+    <div class="sp"></div>
+  </div>
+</div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+const APP_VERSION = "1.0.0";
+
+/* ====== Supabase 설정 ======
+   Supabase 프로젝트를 만든 뒤 아래 두 줄을 채우세요.
+   비워두면 이 기기에만 저장되는 체험 모드로 돌아갑니다. */
+const SUPABASE_URL = "https://yebtgteczbfwyrdrjrgv.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InllYnRndGVjemJmd3lyZHJqcmd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5NjU0MTYsImV4cCI6MjEwMTU0MTQxNn0.MntCguXwfVTzP-A3H83zdFC79CE1hAHWaTAJr31tnn8";
+const EMAIL_DOMAIN = "suneung.app";
+
+const HAS_SB = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+const sb = HAS_SB ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const emailOf = (id) => `${String(id).trim().toLowerCase()}@${EMAIL_DOMAIN}`;
+const padPw = (pw) => String(pw) + "__sn__";
+
+/* ====== 과목 ======
+   시간과 문항 수는 수능 시간표를 따릅니다. */
+const SUBJECTS = [
+  { key: "korean",  name: "국어",           minutes: 80,  count: 45, max: 100, at: "08:40~10:00", color: "#e8590c" },
+  { key: "math",    name: "수학",           minutes: 100, count: 30, max: 100, at: "10:30~12:10", color: "#2f6df6" },
+  { key: "english", name: "영어",           minutes: 70,  count: 45, max: 100, at: "13:10~14:20", color: "#12b886" },
+  { key: "history", name: "한국사",         minutes: 30,  count: 20, max: 50,  at: "14:50~15:20", color: "#7950f2" },
+  { key: "tamgu1",  name: "탐구 1",         minutes: 30,  count: 20, max: 50,  at: "15:35~16:05", color: "#f76707" },
+  { key: "tamgu2",  name: "탐구 2",         minutes: 30,  count: 20, max: 50,  at: "16:07~16:37", color: "#e64980" },
+  { key: "lang2",   name: "제2외국어·한문", minutes: 40,  count: 30, max: 50,  at: "17:05~17:45", color: "#868e96" },
+];
+const subjectOf = (k) => SUBJECTS.find((s) => s.key === k) || SUBJECTS[0];
+
+const EXAM_PRESETS = ["3월 학력평가", "5월 학력평가", "6월 모의평가", "7월 학력평가", "9월 모의평가", "10월 학력평가", "수능", "사설 모의고사"];
+
+/* ====== 수능 날짜 ======
+   해마다 11월 셋째 주 목요일입니다. 발표된 날짜가 다르면 SUNEUNG_FIXED 를 고치세요. */
+const SUNEUNG_FIXED = "2026-11-19";
+function thirdThursday(year) {
+  const d = new Date(year, 10, 1);
+  const shift = (4 - d.getDay() + 7) % 7; // 목요일 = 4
+  return new Date(year, 10, 1 + shift + 14);
+}
+function nextSuneung() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const fixed = new Date(SUNEUNG_FIXED + "T00:00:00");
+  if (fixed >= today) return fixed;
+  let y = today.getFullYear();
+  let d = thirdThursday(y);
+  if (d < today) d = thirdThursday(y + 1);
+  return d;
+}
+const dayGap = (to) => {
+  const a = new Date(); a.setHours(0, 0, 0, 0);
+  return Math.round((to - a) / 86400000);
+};
+
+/* ====== 작은 도구들 ====== */
+const pad2 = (n) => String(n).padStart(2, "0");
+const hhmmss = (sec) => {
+  const s = Math.max(0, Math.floor(sec));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return (h > 0 ? h + ":" : "") + pad2(m) + ":" + pad2(s % 60);
+};
+const minText = (sec) => {
+  if (sec === null || sec === undefined || sec === "") return "";
+  const m = Math.round(Number(sec) / 60);
+  return m >= 60 ? Math.floor(m / 60) + "시간 " + (m % 60) + "분" : m + "분";
+};
+const todayStr = () => {
+  const d = new Date();
+  return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+};
+const fmtDay = (s) => {
+  if (!s) return "";
+  const [y, m, d] = String(s).split("-");
+  const cur = String(new Date().getFullYear());
+  return (y === cur ? "" : y + ". ") + Number(m) + "월 " + Number(d) + "일";
+};
+const numOrNull = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+const parseWrong = (s) =>
+  String(s || "")
+    .split(/[^0-9]+/)
+    .filter(Boolean)
+    .map(Number)
+    .filter((n) => n > 0 && n <= 100)
+    .filter((n, i, a) => a.indexOf(n) === i)
+    .sort((a, b) => a - b);
+const gradeColor = (g) => {
+  if (!g) return "var(--tx3)";
+  if (g <= 2) return "var(--ok)";
+  if (g <= 4) return "var(--pri)";
+  if (g <= 6) return "var(--warn)";
+  return "var(--danger)";
+};
+
+/* ====== 주소 ====== */
+const TAB_PATH = { home: "/", timer: "/timer", records: "/records", stats: "/stats", account: "/account" };
+const PATH_TAB = {};
+Object.keys(TAB_PATH).forEach((k) => { PATH_TAB[TAB_PATH[k]] = k; });
+function parsePath() {
+  try {
+    const p = (String(window.location.pathname || "").replace(/\/+$/, "")) || "/";
+    if (p === "/") return "home";
+    return PATH_TAB[p] || "home";
+  } catch (e) { return "home"; }
+}
+function pushUrl(path) {
+  try { if (window.location.pathname !== path) window.history.pushState({}, "", path); } catch (e) {}
+}
+
+/* ====== 저장소 ======
+   Supabase 키가 있으면 서버에, 없으면 이 기기에 저장합니다.
+   화면은 어느 쪽인지 몰라도 되도록 같은 모양으로 감쌉니다. */
+const LS_REC = "sn-records";
+const readLocal = () => {
+  try { return JSON.parse(localStorage.getItem(LS_REC) || "[]"); } catch (e) { return []; }
+};
+const writeLocal = (rows) => {
+  try { localStorage.setItem(LS_REC, JSON.stringify(rows)); } catch (e) {}
+};
+const mapRecord = (r) => ({
+  id: r.id,
+  examName: r.exam_name || "",
+  examDate: r.exam_date || "",
+  subject: r.subject || "korean",
+  detail: r.detail || "",
+  rawScore: r.raw_score === null || r.raw_score === undefined ? null : Number(r.raw_score),
+  stdScore: r.std_score === null || r.std_score === undefined ? null : Number(r.std_score),
+  percentile: r.percentile === null || r.percentile === undefined ? null : Number(r.percentile),
+  grade: r.grade === null || r.grade === undefined ? null : Number(r.grade),
+  wrongNos: r.wrong_nos || [],
+  durationSec: r.duration_sec === null || r.duration_sec === undefined ? null : Number(r.duration_sec),
+  memo: r.memo || "",
+  createdAt: r.created_at ? Date.parse(r.created_at) : Date.now(),
+});
+const toRow = (v) => ({
+  exam_name: v.examName, exam_date: v.examDate, subject: v.subject, detail: v.detail || "",
+  raw_score: v.rawScore, std_score: v.stdScore, percentile: v.percentile, grade: v.grade,
+  wrong_nos: v.wrongNos || [], duration_sec: v.durationSec, memo: v.memo || "",
+});
+const sortRecords = (rows) =>
+  rows.slice().sort((a, b) => (a.examDate === b.examDate ? b.createdAt - a.createdAt : (a.examDate < b.examDate ? 1 : -1)));
+
+const store = {
+  async list(userId) {
+    if (!HAS_SB) return sortRecords(readLocal().map(mapRecord));
+    if (!userId) return [];
+    const { data, error } = await sb.from("exam_records").select("*").eq("user_id", userId);
+    if (error) throw error;
+    return sortRecords((data || []).map(mapRecord));
+  },
+  async add(userId, v) {
+    if (!HAS_SB) {
+      const rows = readLocal();
+      const row = { ...toRow(v), id: "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), created_at: new Date().toISOString() };
+      rows.push(row); writeLocal(rows);
+      return mapRecord(row);
+    }
+    const { data, error } = await sb.from("exam_records").insert({ ...toRow(v), user_id: userId }).select().single();
+    if (error) throw error;
+    return mapRecord(data);
+  },
+  async update(id, v) {
+    if (!HAS_SB) {
+      const rows = readLocal().map((r) => (r.id === id ? { ...r, ...toRow(v) } : r));
+      writeLocal(rows);
+      return mapRecord(rows.find((r) => r.id === id));
+    }
+    const { data, error } = await sb.from("exam_records").update(toRow(v)).eq("id", id).select().single();
+    if (error) throw error;
+    return mapRecord(data);
+  },
+  async remove(id) {
+    if (!HAS_SB) { writeLocal(readLocal().filter((r) => r.id !== id)); return; }
+    const { error } = await sb.from("exam_records").delete().eq("id", id);
+    if (error) throw error;
+  },
+};
+
+/* ====== 공통 화면 조각 ====== */
+function Ring({ ratio, color, size = 232, stroke = 14, children }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const off = c * (1 - Math.max(0, Math.min(1, ratio)));
+  return (
+    <div className="ring" style={{ width: size, height: size }}>
+      <svg width={size} height={size}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={c} strokeDashoffset={off}
+          style={{ transition: "stroke-dashoffset .3s linear, stroke .3s" }}
+        />
+      </svg>
+      <div className="mid">{children}</div>
+    </div>
+  );
+}
+
+function SubjectBadge({ subject }) {
+  const s = subjectOf(subject);
+  return <span className="badge" style={{ background: s.color }}>{s.name}</span>;
+}
+
+function Modal({ title, onClose, children }) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
+  return (
+    <div className="modal" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", marginBottom: 14 }}>
+          <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: "-0.5px" }}>{title}</div>
+          <button className="btn sm" style={{ marginLeft: "auto" }} onClick={onClose}>닫기</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ====== 로그인 ====== */
+function AuthSheet({ onClose, onLogin, onSignup }) {
+  const [mode, setMode] = useState("login");
+  const [id, setId] = useState("");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setErr("");
+    if (!id.trim()) return setErr("아이디를 입력해 주세요.");
+    if (pw.length < 6) return setErr("비밀번호는 여섯 자 이상으로 정해 주세요.");
+    if (mode === "signup" && pw !== pw2) return setErr("비밀번호가 서로 달라요.");
+    setBusy(true);
+    const r = mode === "login" ? await onLogin(id, pw) : await onSignup(id, pw);
+    setBusy(false);
+    if (r && r.error) setErr(r.error);
+  };
+
+  return (
+    <Modal title={mode === "login" ? "로그인" : "회원가입"} onClose={onClose}>
+      <div className="fld">
+        <label>아이디</label>
+        <input className="in" value={id} autoCapitalize="none" autoCorrect="off"
+          onChange={(e) => setId(e.target.value)} placeholder="영문이나 숫자로" />
+      </div>
+      <div className="fld">
+        <label>비밀번호</label>
+        <input className="in" type="password" value={pw} onChange={(e) => setPw(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && mode === "login") submit(); }} placeholder="여섯 자 이상" />
+      </div>
+      {mode === "signup" && (
+        <div className="fld">
+          <label>비밀번호 확인</label>
+          <input className="in" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") submit(); }} />
+        </div>
+      )}
+      {err && <div className="err">{err}</div>}
+      <button className="btn pri wide" disabled={busy} onClick={submit}>
+        {busy ? "잠시만요…" : mode === "login" ? "로그인" : "가입하고 시작하기"}
+      </button>
+      <button className="btn wide" style={{ marginTop: 9 }} onClick={() => { setErr(""); setMode(mode === "login" ? "signup" : "login"); }}>
+        {mode === "login" ? "아직 계정이 없어요" : "이미 계정이 있어요"}
+      </button>
+    </Modal>
+  );
+}
+
+/* ====== 홈 ====== */
+function Home({ auth, records, go, openAuth }) {
+  const target = useMemo(nextSuneung, []);
+  const dd = dayGap(target);
+  const recent = records.slice(0, 3);
+  const bySubject = useMemo(() => {
+    const m = {};
+    records.forEach((r) => { (m[r.subject] = m[r.subject] || []).push(r); });
+    return m;
+  }, [records]);
+
+  return (
+    <div className="wrap">
+      <div className="h1">오늘도 한 걸음</div>
+      <p className="sub">모의고사를 재고, 풀고, 기록해요.</p>
+
+      <div className="card pad sec">
+        <div style={{ fontSize: 12.5, color: "var(--tx2)", fontWeight: 700, marginBottom: 8 }}>
+          수능까지 · {target.getFullYear()}년 {target.getMonth() + 1}월 {target.getDate()}일
+        </div>
+        <div className="dday">
+          <b style={{ color: "var(--pri)" }}>{dd > 0 ? "D-" + dd : dd === 0 ? "D-DAY" : "D+" + -dd}</b>
+          <span style={{ fontSize: 13, color: "var(--tx3)", fontWeight: 600 }}>
+            {dd > 0 ? "남았어요" : dd === 0 ? "오늘이에요" : "지났어요"}
+          </span>
+        </div>
+      </div>
+
+      <div className="sec">
+        <div className="sec-t">바로 시작</div>
+        <div className="chips">
+          {SUBJECTS.slice(0, 4).map((s) => (
+            <button key={s.key} className="chip" onClick={() => go("timer", { subject: s.key })}>
+              {s.name} {s.minutes}분
+            </button>
+          ))}
+          <button className="chip" onClick={() => go("timer")}>전체 보기</button>
+        </div>
+      </div>
+
+      <div className="sec">
+        <div className="sec-t">최근 기록</div>
+        {!auth && HAS_SB ? (
+          <div className="card pad">
+            <p className="sub" style={{ marginBottom: 12 }}>로그인하면 기록이 계정에 저장돼서 어느 기기에서든 이어서 볼 수 있어요.</p>
+            <button className="btn pri wide" onClick={openAuth}>로그인하기</button>
+          </div>
+        ) : recent.length === 0 ? (
+          <div className="card">
+            <div className="empty">아직 기록이 없어요.<br />모의고사를 보고 점수를 남겨보세요.</div>
+          </div>
+        ) : (
+          <div className="lst">
+            {recent.map((r) => <RecordCard key={r.id} rec={r} onClick={() => go("records")} />)}
+            <button className="btn wide" onClick={() => go("records")}>기록 전체 보기</button>
+          </div>
+        )}
+      </div>
+
+      {records.length > 0 && (
+        <div className="sec">
+          <div className="sec-t">과목별 최근 등급</div>
+          <div className="card pad">
+            <table className="tbl">
+              <thead><tr><th>과목</th><th>응시</th><th>최근 원점수</th><th>최근 등급</th></tr></thead>
+              <tbody>
+                {SUBJECTS.filter((s) => bySubject[s.key]).map((s) => {
+                  const list = bySubject[s.key];
+                  const last = list[0];
+                  return (
+                    <tr key={s.key}>
+                      <td style={{ fontWeight: 700 }}>{s.name}</td>
+                      <td style={{ color: "var(--tx2)" }}>{list.length}회</td>
+                      <td style={{ color: "var(--tx2)" }}>{last.rawScore === null ? "—" : last.rawScore + "점"}</td>
+                      <td style={{ fontWeight: 800, color: gradeColor(last.grade) }}>{last.grade ? last.grade + "등급" : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {!HAS_SB && (
+        <div className="banner">
+          <span>💾</span>
+          <span>지금은 체험 모드예요. 기록이 이 기기에만 저장돼요. Supabase 키를 넣으면 계정으로 로그인해서 어디서든 볼 수 있어요.</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ====== 타이머 ====== */
+const TIMER_KEY = "sn-timer";
+function beep(times) {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    for (let i = 0; i < times; i++) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880;
+      const t0 = ctx.currentTime + i * 0.28;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.22);
+      o.start(t0); o.stop(t0 + 0.24);
+    }
+    setTimeout(() => { try { ctx.close(); } catch (e) {} }, times * 300 + 400);
+  } catch (e) {}
+}
+
+function Timer({ initialSubject, onRecord }) {
+  const [subject, setSubject] = useState(initialSubject || "korean");
+  const [custom, setCustom] = useState("");
+  const [total, setTotal] = useState(subjectOf(initialSubject || "korean").minutes * 60);
+  const [endsAt, setEndsAt] = useState(null);   // 돌아가는 중이면 끝나는 시각
+  const [left, setLeft] = useState(subjectOf(initialSubject || "korean").minutes * 60);
+  const [done, setDone] = useState(false);
+  const notified = useRef({});
+  const wake = useRef(null);
+
+  const s = subjectOf(subject);
+  const running = endsAt !== null;
+
+  /* 새로고침해도 이어서 돌아가게 남겨둔다 */
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TIMER_KEY);
+      if (!raw) return;
+      const v = JSON.parse(raw);
+      if (!v || !v.endsAt) return;
+      const rest = Math.round((v.endsAt - Date.now()) / 1000);
+      if (rest <= 0) { localStorage.removeItem(TIMER_KEY); return; }
+      setSubject(v.subject); setTotal(v.total); setEndsAt(v.endsAt); setLeft(rest);
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    if (!running) return;
+    const tick = () => {
+      const rest = Math.round((endsAt - Date.now()) / 1000);
+      setLeft(Math.max(0, rest));
+      [600, 300, 60].forEach((mark) => {
+        if (rest <= mark && rest > mark - 2 && !notified.current[mark]) {
+          notified.current[mark] = true;
+          beep(1);
+        }
+      });
+      if (rest <= 0) {
+        setEndsAt(null); setDone(true);
+        try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+        beep(3);
+        try { if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]); } catch (e) {}
+      }
+    };
+    tick();
+    const t = setInterval(tick, 250);
+    return () => clearInterval(t);
+  }, [running, endsAt]);
+
+  /* 화면이 꺼지면 시험 도중에 시간을 못 본다 */
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        if (running && navigator.wakeLock && !wake.current) {
+          wake.current = await navigator.wakeLock.request("screen");
+        }
+      } catch (e) {}
+      if (!alive) return;
+    })();
+    if (!running && wake.current) {
+      try { wake.current.release(); } catch (e) {}
+      wake.current = null;
+    }
+    return () => { alive = false; };
+  }, [running]);
+
+  const pickSubject = (k) => {
+    if (running) return;
+    setSubject(k); setCustom("");
+    const sec = subjectOf(k).minutes * 60;
+    setTotal(sec); setLeft(sec); setDone(false);
+  };
+  const applyCustom = (v) => {
+    setCustom(v);
+    if (v === "") { // 비우면 고른 과목의 제한 시간으로 되돌린다
+      const sec = subjectOf(subject).minutes * 60;
+      setTotal(sec); setLeft(sec); setDone(false);
+      return;
+    }
+    const m = Number(v);
+    if (m > 0 && m <= 300) { setTotal(m * 60); setLeft(m * 60); setDone(false); }
+  };
+  const start = () => {
+    notified.current = {};
+    const at = Date.now() + left * 1000;
+    setEndsAt(at); setDone(false);
+    try { localStorage.setItem(TIMER_KEY, JSON.stringify({ subject, total, endsAt: at })); } catch (e) {}
+  };
+  const pause = () => {
+    setEndsAt(null);
+    try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+  };
+  const reset = () => {
+    setEndsAt(null); setLeft(total); setDone(false); notified.current = {};
+    try { localStorage.removeItem(TIMER_KEY); } catch (e) {}
+  };
+
+  const ratio = total > 0 ? left / total : 0;
+  const cls = left <= 60 ? "danger" : left <= 300 ? "warn" : "";
+  const color = left <= 60 ? "var(--danger)" : left <= 300 ? "var(--warn)" : s.color;
+
+  return (
+    <div className="wrap">
+      <div className="h1">모의고사 타이머</div>
+      <p className="sub">과목을 고르면 실제 시험과 같은 시간으로 맞춰져요.</p>
+
+      <div className="sec">
+        <div className="chips">
+          {SUBJECTS.map((x) => (
+            <button key={x.key} className={"chip" + (x.key === subject && !custom ? " on" : "")}
+              disabled={running} onClick={() => pickSubject(x.key)}>
+              {x.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="card sec">
+        <div className="tmr">
+          <Ring ratio={ratio} color={color}>
+            <div className={"clock " + cls}>{hhmmss(left)}</div>
+            <div className="lbl">{custom ? "직접 맞춘 시간" : s.name}</div>
+          </Ring>
+
+          {done ? (
+            <div style={{ textAlign: "center", marginBottom: 14 }}>
+              <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>시간이 다 됐어요</div>
+              <div style={{ fontSize: 13, color: "var(--tx2)" }}>답안지에서 손을 떼세요.</div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: "var(--tx3)", marginBottom: 14, fontWeight: 600, textAlign: "center", lineHeight: 1.5 }}>
+              {custom ? Math.round(total / 60) + "분" : s.minutes + "분 · " + s.count + "문항 · " + s.at}
+              {running && left > 600 ? <br /> : ""}
+              {running && left > 600 ? "10분 전에 알려드려요" : ""}
+            </div>
+          )}
+
+          <div className="row" style={{ width: "100%" }}>
+            {!running ? (
+              <button className="btn pri" style={{ flex: 2 }} onClick={start}>
+                {left === total ? "시작" : done ? "다시" : "이어서"}
+              </button>
+            ) : (
+              <button className="btn" style={{ flex: 2 }} onClick={pause}>일시정지</button>
+            )}
+            <button className="btn" onClick={reset}>처음으로</button>
+          </div>
+
+          <button className="btn wide" style={{ marginTop: 9 }}
+            onClick={() => onRecord({ subject, durationSec: total - left })}>
+            점수 기록하기
+          </button>
+        </div>
+      </div>
+
+      <div className="sec">
+        <div className="sec-t">시간 직접 맞추기</div>
+        <div className="card pad">
+          <div className="row" style={{ alignItems: "center" }}>
+            <input className="in" type="number" inputMode="numeric" value={custom} disabled={running}
+              onChange={(e) => applyCustom(e.target.value)} placeholder="분" />
+            <div style={{ flex: 2, fontSize: 12.5, color: "var(--tx3)", lineHeight: 1.5 }}>
+              실전보다 짧게 잡고 푸는 연습에 써요. 최대 300분까지 돼요.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="banner">
+        <span>🔔</span>
+        <span>10분, 5분, 1분 남았을 때 소리로 알려드려요. 소리가 안 나면 아이폰 무음 스위치를 확인해 주세요.</span>
+      </div>
+    </div>
+  );
+}
+
+/* ====== 기록 ====== */
+function RecordCard({ rec, onClick }) {
+  const s = subjectOf(rec.subject);
+  return (
+    <button className="card rec" onClick={onClick}>
+      <div className="top">
+        <SubjectBadge subject={rec.subject} />
+        <div className="ttl">{rec.examName || "이름 없는 시험"}{rec.detail ? " · " + rec.detail : ""}</div>
+        <div className="dt">{fmtDay(rec.examDate)}</div>
+      </div>
+      <div className="nums">
+        <div className="nm-i"><b>{rec.rawScore === null ? "—" : rec.rawScore}</b><span>원점수</span></div>
+        <div className="nm-i"><b style={{ color: gradeColor(rec.grade) }}>{rec.grade || "—"}</b><span>등급</span></div>
+        <div className="nm-i"><b>{rec.percentile === null ? "—" : rec.percentile}</b><span>백분위</span></div>
+        <div className="nm-i"><b>{rec.stdScore === null ? "—" : rec.stdScore}</b><span>표준점수</span></div>
+        {rec.wrongNos.length > 0 && (
+          <div className="nm-i"><b style={{ color: "var(--danger)" }}>{rec.wrongNos.length}</b><span>틀린 문항</span></div>
+        )}
+      </div>
+      {rec.durationSec ? (
+        <div style={{ marginTop: 8, fontSize: 12, color: "var(--tx3)", fontWeight: 600 }}>푼 시간 {minText(rec.durationSec)}</div>
+      ) : null}
+      <div style={{ fontSize: 11, color: s.color }} />
+    </button>
+  );
+}
+
+const emptyForm = (over) => ({
+  examName: "", examDate: todayStr(), subject: "korean", detail: "",
+  rawScore: "", stdScore: "", percentile: "", grade: "", wrong: "", durationSec: null, memo: "",
+  ...over,
+});
+
+function RecordForm({ init, onClose, onSave, onDelete }) {
+  const [f, setF] = useState(init);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const s = subjectOf(f.subject);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+  const wrongList = parseWrong(f.wrong);
+
+  const save = async () => {
+    setErr("");
+    if (!f.examName.trim()) return setErr("시험 이름을 적어 주세요.");
+    if (!f.examDate) return setErr("응시한 날짜를 골라 주세요.");
+    const grade = numOrNull(f.grade);
+    if (grade !== null && (grade < 1 || grade > 9)) return setErr("등급은 1부터 9까지예요.");
+    setBusy(true);
+    const r = await onSave({
+      examName: f.examName.trim(), examDate: f.examDate, subject: f.subject, detail: f.detail.trim(),
+      rawScore: numOrNull(f.rawScore), stdScore: numOrNull(f.stdScore),
+      percentile: numOrNull(f.percentile), grade, wrongNos: wrongList,
+      durationSec: f.durationSec, memo: f.memo.trim(),
+    });
+    setBusy(false);
+    if (r && r.error) setErr(r.error);
+  };
+
+  return (
+    <Modal title={init.id ? "기록 고치기" : "모의고사 기록"} onClose={onClose}>
+      <div className="fld">
+        <label>시험 이름</label>
+        <input className="in" value={f.examName} onChange={(e) => set("examName", e.target.value)} placeholder="예: 2026 6월 모의평가" />
+        <div className="chips" style={{ marginTop: 8 }}>
+          {EXAM_PRESETS.map((p) => (
+            <button key={p} className="chip" onClick={() => set("examName", p)}>{p}</button>
+          ))}
+        </div>
+      </div>
+
+      <div className="fld">
+        <label>과목</label>
+        <div className="chips">
+          {SUBJECTS.map((x) => (
+            <button key={x.key} className={"chip" + (x.key === f.subject ? " on" : "")} onClick={() => set("subject", x.key)}>
+              {x.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="fld">
+          <label>세부 과목</label>
+          <input className="in" value={f.detail} onChange={(e) => set("detail", e.target.value)} placeholder="미적분, 생명과학Ⅰ" />
+        </div>
+        <div className="fld">
+          <label>응시일</label>
+          <input className="in" type="date" value={f.examDate} onChange={(e) => set("examDate", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="fld">
+          <label>원점수 (만점 {s.max})</label>
+          <input className="in" type="number" inputMode="numeric" value={f.rawScore} onChange={(e) => set("rawScore", e.target.value)} />
+        </div>
+        <div className="fld">
+          <label>등급</label>
+          <input className="in" type="number" inputMode="numeric" value={f.grade} onChange={(e) => set("grade", e.target.value)} placeholder="1~9" />
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="fld">
+          <label>표준점수</label>
+          <input className="in" type="number" inputMode="numeric" value={f.stdScore} onChange={(e) => set("stdScore", e.target.value)} />
+        </div>
+        <div className="fld">
+          <label>백분위</label>
+          <input className="in" type="number" inputMode="numeric" value={f.percentile} onChange={(e) => set("percentile", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="fld">
+        <label>틀린 문항 번호</label>
+        <input className="in" value={f.wrong} inputMode="numeric" onChange={(e) => set("wrong", e.target.value)} placeholder="14 20 22 처럼 띄어서" />
+        {wrongList.length > 0 && (
+          <div style={{ marginTop: 7, fontSize: 12, color: "var(--tx2)", fontWeight: 600 }}>
+            {wrongList.length}문항 · {wrongList.join(", ")}번
+          </div>
+        )}
+      </div>
+
+      <div className="fld">
+        <label>푼 시간</label>
+        <div className="row" style={{ alignItems: "center" }}>
+          <input className="in" type="number" inputMode="numeric"
+            value={f.durationSec === null || f.durationSec === undefined ? "" : Math.round(f.durationSec / 60)}
+            onChange={(e) => set("durationSec", e.target.value === "" ? null : Number(e.target.value) * 60)} placeholder="분" />
+          <div style={{ flex: 2, fontSize: 12, color: "var(--tx3)" }}>제한 시간은 {s.minutes}분이에요.</div>
+        </div>
+      </div>
+
+      <div className="fld">
+        <label>메모</label>
+        <textarea className="in" value={f.memo} onChange={(e) => set("memo", e.target.value)} placeholder="시간이 모자랐던 부분, 실수한 유형" />
+      </div>
+
+      {err && <div className="err">{err}</div>}
+      <button className="btn pri wide" disabled={busy} onClick={save}>{busy ? "저장 중…" : "저장"}</button>
+      {init.id && (
+        <button className="btn danger wide" style={{ marginTop: 9 }}
+          onClick={() => { if (window.confirm("이 기록을 지울까요? 되돌릴 수 없어요.")) onDelete(init.id); }}>
+          기록 지우기
+        </button>
+      )}
+    </Modal>
+  );
+}
+
+function Records({ auth, records, openAuth, onNew, onEdit }) {
+  const [filter, setFilter] = useState("all");
+  const shown = filter === "all" ? records : records.filter((r) => r.subject === filter);
+  const used = SUBJECTS.filter((s) => records.some((r) => r.subject === s.key));
+
+  if (HAS_SB && !auth) {
+    return (
+      <div className="wrap">
+        <div className="h1">모의고사 기록</div>
+        <div className="card pad sec">
+          <p className="sub" style={{ marginBottom: 12 }}>기록은 계정에 저장돼요. 로그인하면 지금까지 남긴 점수를 볼 수 있어요.</p>
+          <button className="btn pri wide" onClick={openAuth}>로그인하기</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wrap">
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+        <div>
+          <div className="h1">모의고사 기록</div>
+          <p className="sub">{records.length}개를 남겼어요.</p>
+        </div>
+        <button className="btn pri sm" style={{ marginLeft: "auto", marginBottom: 6 }} onClick={onNew}>+ 기록</button>
+      </div>
+
+      {used.length > 0 && (
+        <div className="chips sec">
+          <button className={"chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>전체</button>
+          {used.map((s) => (
+            <button key={s.key} className={"chip" + (filter === s.key ? " on" : "")} onClick={() => setFilter(s.key)}>{s.name}</button>
+          ))}
+        </div>
+      )}
+
+      <div className="lst sec">
+        {shown.length === 0 ? (
+          <div className="card"><div className="empty">아직 기록이 없어요.<br />오른쪽 위 기록 버튼으로 점수를 남겨보세요.</div></div>
+        ) : (
+          shown.map((r) => <RecordCard key={r.id} rec={r} onClick={() => onEdit(r)} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ====== 통계 ====== */
+function LineChart({ points, color, max }) {
+  const W = 300, H = 130, P = 10;
+  if (points.length === 0) return null;
+  const top = max || Math.max.apply(null, points.map((p) => p.v)) || 1;
+  const bottom = 0;
+  const x = (i) => (points.length === 1 ? W / 2 : P + (i * (W - P * 2)) / (points.length - 1));
+  const y = (v) => H - P - ((v - bottom) / (top - bottom || 1)) * (H - P * 2);
+  const d = points.map((p, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(p.v).toFixed(1)).join(" ");
+  const area = d + " L" + x(points.length - 1).toFixed(1) + " " + (H - P) + " L" + x(0).toFixed(1) + " " + (H - P) + " Z";
+  return (
+    <svg viewBox={"0 0 " + W + " " + H} style={{ width: "100%", height: 130, display: "block" }}>
+      <path d={area} fill={color} opacity="0.10" />
+      <path d={d} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle cx={x(i)} cy={y(p.v)} r="4" fill="var(--card)" stroke={color} strokeWidth="2.5" />
+          <text x={x(i)} y={y(p.v) - 9} textAnchor="middle" fontSize="10" fontWeight="700" fill="var(--tx2)">{p.v}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function Stats({ auth, records, openAuth }) {
+  const used = SUBJECTS.filter((s) => records.some((r) => r.subject === s.key));
+  const [pick, setPick] = useState(null);
+  const key = pick && used.some((u) => u.key === pick) ? pick : (used[0] && used[0].key);
+  const s = key ? subjectOf(key) : null;
+
+  const mine = useMemo(
+    () => records.filter((r) => r.subject === key).slice().reverse(),
+    [records, key]
+  );
+  const scores = mine.filter((r) => r.rawScore !== null);
+  const grades = mine.filter((r) => r.grade !== null);
+  const avg = (arr, f) => (arr.length ? Math.round((arr.reduce((a, b) => a + f(b), 0) / arr.length) * 10) / 10 : null);
+
+  const wrongTop = useMemo(() => {
+    const m = {};
+    mine.forEach((r) => (r.wrongNos || []).forEach((n) => { m[n] = (m[n] || 0) + 1; }));
+    return Object.keys(m).map(Number).map((n) => ({ n, c: m[n] })).filter((x) => x.c >= 2)
+      .sort((a, b) => b.c - a.c || a.n - b.n).slice(0, 8);
+  }, [mine]);
+
+  if (HAS_SB && !auth) {
+    return (
+      <div className="wrap">
+        <div className="h1">성적 흐름</div>
+        <div className="card pad sec">
+          <p className="sub" style={{ marginBottom: 12 }}>로그인하면 지금까지의 점수가 어떻게 움직였는지 볼 수 있어요.</p>
+          <button className="btn pri wide" onClick={openAuth}>로그인하기</button>
+        </div>
+      </div>
+    );
+  }
+  if (!key) {
+    return (
+      <div className="wrap">
+        <div className="h1">성적 흐름</div>
+        <div className="card sec"><div className="empty">기록이 두 개 이상 쌓이면<br />점수가 어떻게 움직였는지 보여드려요.</div></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="wrap">
+      <div className="h1">성적 흐름</div>
+      <p className="sub">과목을 골라서 점수가 어떻게 움직였는지 봐요.</p>
+
+      <div className="chips sec">
+        {used.map((x) => (
+          <button key={x.key} className={"chip" + (x.key === key ? " on" : "")} onClick={() => setPick(x.key)}>{x.name}</button>
+        ))}
+      </div>
+
+      <div className="card pad sec">
+        <div style={{ display: "flex", gap: 18, marginBottom: 12 }}>
+          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800 }}>{mine.length}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>응시</span></div>
+          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800 }}>{avg(scores, (r) => r.rawScore) ?? "—"}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>평균 원점수</span></div>
+          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800 }}>{scores.length ? Math.max.apply(null, scores.map((r) => r.rawScore)) : "—"}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>최고 원점수</span></div>
+          <div className="nm-i"><b style={{ fontSize: 20, fontWeight: 800, color: gradeColor(avg(grades, (r) => r.grade)) }}>{avg(grades, (r) => r.grade) ?? "—"}</b><span style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>평균 등급</span></div>
+        </div>
+        {scores.length > 0 ? (
+          <LineChart points={scores.map((r) => ({ v: r.rawScore }))} color={s.color} max={s.max} />
+        ) : (
+          <div className="empty" style={{ padding: 24 }}>원점수를 적은 기록이 없어요.</div>
+        )}
+        <div style={{ fontSize: 11.5, color: "var(--tx3)", textAlign: "center", marginTop: 4, fontWeight: 600 }}>
+          왼쪽이 예전, 오른쪽이 최근이에요
+        </div>
+      </div>
+
+      {wrongTop.length > 0 && (
+        <div className="sec">
+          <div className="sec-t">자주 틀리는 문항</div>
+          <div className="card pad">
+            <div className="chips">
+              {wrongTop.map((w) => (
+                <span key={w.n} className="chip" style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
+                  {w.n}번 · {w.c}회
+                </span>
+              ))}
+            </div>
+            <p className="sub" style={{ marginTop: 10, marginBottom: 0, fontSize: 12.5 }}>
+              같은 자리에서 두 번 넘게 틀린 문항이에요. 그 번호대가 어떤 유형인지 살펴보면 좋아요.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="sec">
+        <div className="sec-t">{s.name} 기록</div>
+        <div className="card pad">
+          <table className="tbl">
+            <thead><tr><th>날짜</th><th>시험</th><th>원점수</th><th>등급</th></tr></thead>
+            <tbody>
+              {mine.slice().reverse().map((r) => (
+                <tr key={r.id}>
+                  <td style={{ color: "var(--tx3)", whiteSpace: "nowrap" }}>{fmtDay(r.examDate)}</td>
+                  <td style={{ fontWeight: 600 }}>{r.examName}</td>
+                  <td>{r.rawScore === null ? "—" : r.rawScore}</td>
+                  <td style={{ fontWeight: 800, color: gradeColor(r.grade) }}>{r.grade || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ====== 계정 ====== */
+function Account({ auth, records, openAuth, onLogout, theme, setTheme }) {
+  return (
+    <div className="wrap">
+      <div className="h1">계정</div>
+
+      <div className="card pad sec">
+        {auth ? (
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 3 }}>{auth.username}</div>
+            <div style={{ fontSize: 13, color: "var(--tx2)", marginBottom: 14 }}>기록 {records.length}개를 남겼어요.</div>
+            <button className="btn wide" onClick={onLogout}>로그아웃</button>
+          </div>
+        ) : HAS_SB ? (
+          <div>
+            <p className="sub" style={{ marginBottom: 12 }}>로그인하면 기록이 계정에 저장돼요.</p>
+            <button className="btn pri wide" onClick={openAuth}>로그인하기</button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontWeight: 800, fontSize: 17, marginBottom: 3 }}>체험 모드</div>
+            <p className="sub" style={{ marginBottom: 0 }}>
+              기록 {records.length}개가 이 기기에만 저장돼 있어요. Supabase 키를 넣으면 계정으로 옮길 수 있어요.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="sec">
+        <div className="sec-t">화면</div>
+        <div className="card pad">
+          <div className="chips">
+            {[["light", "밝게"], ["dark", "어둡게"]].map(([k, n]) => (
+              <button key={k} className={"chip" + (theme === k ? " on" : "")} onClick={() => setTheme(k)}>{n}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="sec">
+        <div className="sec-t">수능 시간표</div>
+        <div className="card pad">
+          <table className="tbl">
+            <thead><tr><th>교시</th><th>과목</th><th>시간</th><th>문항</th></tr></thead>
+            <tbody>
+              {SUBJECTS.map((s, i) => (
+                <tr key={s.key}>
+                  <td style={{ color: "var(--tx3)" }}>{i + 1}</td>
+                  <td style={{ fontWeight: 700 }}>{s.name}</td>
+                  <td style={{ color: "var(--tx2)", whiteSpace: "nowrap" }}>{s.at}</td>
+                  <td style={{ color: "var(--tx2)" }}>{s.count}개</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p className="sub" style={{ textAlign: "center", marginTop: 22, fontSize: 12, color: "var(--tx3)" }}>수능 대비 v{APP_VERSION}</p>
+    </div>
+  );
+}
+
+/* ====== 앱 ====== */
+function App() {
+  const [tab, setTab] = useState(parsePath);
+  const [auth, setAuth] = useState(null);
+  const [records, setRecords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [form, setForm] = useState(null);
+  const [timerSubject, setTimerSubject] = useState(null);
+  const [theme, setThemeState] = useState(() => {
+    try { return document.documentElement.dataset.theme || "light"; } catch (e) { return "light"; }
+  });
+
+  const setTheme = (t) => {
+    setThemeState(t);
+    try {
+      document.documentElement.dataset.theme = t;
+      localStorage.setItem("sn-theme", t);
+      const mc = document.querySelector('meta[name="theme-color"]');
+      if (mc) mc.setAttribute("content", t === "dark" ? "#0f131b" : "#eef2fa");
+    } catch (e) {}
+  };
+
+  const go = (t, opt) => {
+    if (opt && opt.subject) setTimerSubject(opt.subject);
+    setTab(t);
+    pushUrl(TAB_PATH[t] || "/");
+    try { window.scrollTo(0, 0); } catch (e) {}
+  };
+
+  useEffect(() => {
+    const onPop = () => setTab(parsePath());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const reload = useCallback(async (userId) => {
+    try {
+      setRecords(await store.list(userId));
+    } catch (e) {
+      console.warn("기록을 불러오지 못했습니다:", e);
+      setRecords([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!HAS_SB) {
+        await reload(null);
+        if (alive) setLoading(false);
+        return;
+      }
+      try {
+        const { data } = await sb.auth.getSession();
+        const u = data && data.session ? data.session.user : null;
+        if (u) {
+          const me = { id: u.id, username: (u.user_metadata && u.user_metadata.username) || String(u.email || "").split("@")[0] };
+          if (alive) setAuth(me);
+          await reload(u.id);
+        }
+      } catch (e) {
+        console.warn("세션 확인 실패:", e);
+      }
+      if (alive) setLoading(false);
+    })();
+    return () => { alive = false; };
+  }, [reload]);
+
+  const onLogin = async (id, pw) => {
+    if (!HAS_SB) return { error: "지금은 체험 모드예요." };
+    try {
+      const { data, error } = await sb.auth.signInWithPassword({ email: emailOf(id), password: padPw(pw) });
+      if (error || !data || !data.user) return { error: "아이디 또는 비밀번호가 올바르지 않아요." };
+      const me = { id: data.user.id, username: id.trim() };
+      setAuth(me); setAuthOpen(false);
+      reload(data.user.id);
+      return {};
+    } catch (e) {
+      return { error: "로그인 중 문제가 생겼어요. 잠시 뒤에 다시 해주세요." };
+    }
+  };
+  const onSignup = async (id, pw) => {
+    if (!HAS_SB) return { error: "지금은 체험 모드예요." };
+    try {
+      const { data, error } = await sb.auth.signUp({
+        email: emailOf(id), password: padPw(pw),
+        options: { data: { username: id.trim() } },
+      });
+      if (error) {
+        const dup = /registered|already|exists|duplicate/i.test(error.message || "");
+        return { error: dup ? "이미 쓰고 있는 아이디예요." : error.message };
+      }
+      if (!data || !data.session || !data.user) {
+        return { error: "가입은 됐어요. 로그인이 안 되면 Supabase에서 이메일 확인 설정을 꺼주세요." };
+      }
+      setAuth({ id: data.user.id, username: id.trim() });
+      setAuthOpen(false);
+      reload(data.user.id);
+      return {};
+    } catch (e) {
+      return { error: "가입 중 문제가 생겼어요. 잠시 뒤에 다시 해주세요." };
+    }
+  };
+  const onLogout = async () => {
+    try { if (HAS_SB) await sb.auth.signOut(); } catch (e) {}
+    setAuth(null); setRecords([]); go("home");
+  };
+
+  const saveRecord = async (v) => {
+    try {
+      if (form && form.id) {
+        const updated = await store.update(form.id, v);
+        setRecords((p) => sortRecords(p.map((r) => (r.id === form.id ? updated : r))));
+      } else {
+        const added = await store.add(auth ? auth.id : null, v);
+        setRecords((p) => sortRecords([added].concat(p)));
+      }
+      setForm(null);
+      return {};
+    } catch (e) {
+      console.warn("저장 실패:", e);
+      return { error: "저장하지 못했어요. 잠시 뒤에 다시 해주세요." };
+    }
+  };
+  const deleteRecord = async (id) => {
+    try {
+      await store.remove(id);
+      setRecords((p) => p.filter((r) => r.id !== id));
+      setForm(null);
+    } catch (e) {
+      window.alert("지우지 못했어요. 잠시 뒤에 다시 해주세요.");
+    }
+  };
+
+  const needLogin = () => {
+    if (HAS_SB && !auth) { setAuthOpen(true); return true; }
+    return false;
+  };
+  const openNew = (over) => { if (needLogin()) return; setForm(emptyForm(over)); };
+  const openEdit = (r) => setForm({
+    id: r.id, examName: r.examName, examDate: r.examDate, subject: r.subject, detail: r.detail,
+    rawScore: r.rawScore === null ? "" : String(r.rawScore),
+    stdScore: r.stdScore === null ? "" : String(r.stdScore),
+    percentile: r.percentile === null ? "" : String(r.percentile),
+    grade: r.grade === null ? "" : String(r.grade),
+    wrong: (r.wrongNos || []).join(" "), durationSec: r.durationSec, memo: r.memo,
+  });
+
+  if (loading) {
+    return (
+      <div className="sp-splash">
+        <div className="lg">D</div>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>불러오는 중…</div>
+        <div className="sp" />
+      </div>
+    );
+  }
+
+  const NAV = [
+    ["home", "홈", "🏠"],
+    ["timer", "타이머", "⏱"],
+    ["records", "기록", "📋"],
+    ["stats", "흐름", "📈"],
+    ["account", "계정", "👤"],
+  ];
+
+  return (
+    <div>
+      <header className="hd">
+        <div className="hd-in">
+          <div className="logo">D</div>
+          <div className="nm">수능 대비</div>
+          <div className="rt">
+            {HAS_SB && !auth && <button className="btn sm pri" onClick={() => setAuthOpen(true)}>로그인</button>}
+            {auth && <span style={{ fontSize: 12.5, color: "var(--tx2)", fontWeight: 700 }}>{auth.username}</span>}
+          </div>
+        </div>
+      </header>
+
+      {tab === "home" && <Home auth={auth} records={records} go={go} openAuth={() => setAuthOpen(true)} />}
+      {tab === "timer" && (
+        <Timer
+          initialSubject={timerSubject}
+          onRecord={(v) => openNew({ subject: v.subject, durationSec: v.durationSec || null })}
+        />
+      )}
+      {tab === "records" && (
+        <Records auth={auth} records={records} openAuth={() => setAuthOpen(true)}
+          onNew={() => openNew()} onEdit={openEdit} />
+      )}
+      {tab === "stats" && <Stats auth={auth} records={records} openAuth={() => setAuthOpen(true)} />}
+      {tab === "account" && (
+        <Account auth={auth} records={records} openAuth={() => setAuthOpen(true)}
+          onLogout={onLogout} theme={theme} setTheme={setTheme} />
+      )}
+
+      <nav className="nav">
+        <div className="nav-in">
+          {NAV.map(([k, n, ic]) => (
+            <button key={k} className={tab === k ? "on" : ""} onClick={() => go(k)}>
+              <span className="ic">{ic}</span>
+              <span>{n}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {authOpen && <AuthSheet onClose={() => setAuthOpen(false)} onLogin={onLogin} onSignup={onSignup} />}
+      {form && <RecordForm init={form} onClose={() => setForm(null)} onSave={saveRecord} onDelete={deleteRecord} />}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
